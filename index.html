@@ -5,52 +5,78 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>食事記録表</title>
+<title>食事記録</title>
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🍖%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' style='background-color:white;'%3E%3Ctext y='.9em' font-size='90'%3E🍖%3C/text%3E%3C/svg%3E">
+
 <style>
   :root { --primary: #007AFF; --bg: #F2F2F7; --danger: #FF3B30; --success: #34C759; }
+  
+  /* 男の子・女の子テーマカラー */
+  body[data-user="boy"] { --theme-color: #007AFF; --theme-light: #E0F0FF; }
+  body[data-user="girl"] { --theme-color: #FF2D55; --theme-light: #FFE0E6; }
+
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-    background-color: var(--bg);
-    margin: 0; padding: 0; color: #333;
-    padding-bottom: 120px; /* フッター分の余白 */
+    background-color: var(--bg); margin: 0; padding: 0; color: #333;
+    padding-bottom: 120px; transition: background 0.3s;
   }
 
-  /* ヘッダーエリア（タブとリセット） */
-  header {
-    background: #fff; position: sticky; top: 0; z-index: 100;
-    box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+  /* ユーザー切り替えヘッダー */
+  .user-switcher {
+    display: flex; gap: 10px; padding: 10px 15px; background: #fff;
+    justify-content: center; border-bottom: 1px solid #eee;
   }
-  .top-bar {
-    display: flex; justify-content: flex-end; padding: 10px 15px;
-    border-bottom: 1px solid #eee;
+  .user-btn {
+    flex: 1; padding: 8px; border-radius: 20px; border: 2px solid transparent;
+    font-weight: bold; background: #f0f0f0; color: #999; cursor: pointer;
+    font-size: 0.9rem; transition: 0.2s;
+  }
+  /* 選択時のスタイル */
+  body[data-user="boy"] .user-btn[data-target="boy"] {
+    background: #007AFF; color: white; border-color: #0056b3;
+  }
+  body[data-user="girl"] .user-btn[data-target="girl"] {
+    background: #FF2D55; color: white; border-color: #d6002a;
+  }
+
+  /* サブヘッダー（リセット・タブ） */
+  .sub-header {
+    background: #fff; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
+  .tools-bar {
+    display: flex; justify-content: flex-end; padding: 5px 15px;
   }
   .btn-reset {
-    font-size: 0.85rem; color: var(--danger); background: none; border: 1px solid var(--danger);
-    padding: 4px 12px; border-radius: 15px; cursor: pointer;
+    font-size: 0.8rem; color: #666; background: none; border: 1px solid #ccc;
+    padding: 4px 10px; border-radius: 12px; cursor: pointer;
   }
 
-  /* 朝食・夕食タブ */
-  .tabs { display: flex; width: 100%; }
+  /* 食事タブ */
+  .tabs { display: flex; width: 100%; border-top: 1px solid #eee; }
   .tab-btn {
     flex: 1; padding: 12px; text-align: center; font-weight: bold; cursor: pointer;
-    border-bottom: 3px solid transparent; color: #999; transition: 0.2s;
+    border-bottom: 3px solid transparent; color: #999;
   }
-  .tab-btn.active { border-bottom-color: var(--primary); color: var(--primary); background: #f9f9ff; }
+  .tab-btn.active {
+    border-bottom-color: var(--theme-color);
+    color: var(--theme-color);
+    background: var(--theme-light);
+  }
 
-  /* コンテンツエリア */
+  /* コンテンツ */
   .container { padding: 15px; }
-  
-  /* カテゴリ見出し */
   .category-title {
     font-size: 0.9rem; color: #666; margin: 20px 0 8px 5px; font-weight: bold;
     display: flex; align-items: center;
   }
   .category-title::before {
     content: ''; display: inline-block; width: 4px; height: 1em;
-    background: var(--primary); margin-right: 6px; border-radius: 2px;
+    background: var(--theme-color); margin-right: 6px; border-radius: 2px;
   }
 
-  /* リストカード */
   .list-card {
     background: white; border-radius: 12px; overflow: hidden;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 15px;
@@ -62,76 +88,79 @@
   .item-row:last-child { border-bottom: none; }
   .item-name { font-weight: 500; font-size: 1rem; }
 
-  /* ラジオボタンデザイン */
-  .options { display: flex; gap: 6px; }
+  /* ラジオボタン */
+  .options { display: flex; gap: 5px; }
   .radio-label {
-    padding: 6px 10px; border-radius: 8px; border: 1px solid #ddd;
+    padding: 8px 10px; border-radius: 8px; border: 1px solid #ddd;
     font-size: 0.8rem; cursor: pointer; background: #fff; color: #666;
-    transition: all 0.2s; min-width: 30px; text-align: center;
+    min-width: 35px; text-align: center;
   }
   input[type="radio"] { display: none; }
   
-  /* 選択時の色 */
   input[value="finish"]:checked + .radio-label {
-    background-color: var(--success); color: white; border-color: var(--success); font-weight: bold;
+    background-color: var(--success); color: white; border-color: var(--success);
   }
   input[value="left"]:checked + .radio-label {
-    background-color: var(--danger); color: white; border-color: var(--danger); font-weight: bold;
+    background-color: var(--danger); color: white; border-color: var(--danger);
   }
   input[value="none"]:checked + .radio-label {
     background-color: #eee; color: #aaa; border-color: #eee;
   }
 
-  /* その他入力エリア */
-  .others-area { margin-top: 30px; }
+  /* その他入力 */
   .other-box {
-    background: white; padding: 15px; border-radius: 12px; margin-bottom: 15px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px;
   }
-  .other-label { font-size: 0.9rem; font-weight: bold; margin-bottom: 8px; display: block; }
+  .other-label { font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block; }
   .other-input {
     width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;
     font-size: 1rem; box-sizing: border-box; -webkit-appearance: none;
   }
 
-  /* フッター固定ボタン */
+  /* フッター */
   .fixed-footer {
     position: fixed; bottom: 0; left: 0; width: 100%;
     background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
     padding: 15px 20px; box-sizing: border-box; border-top: 1px solid #ccc;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    z-index: 200;
   }
   .btn-copy {
     width: 100%; border: none; padding: 14px; border-radius: 12px;
     font-size: 1.1rem; font-weight: bold; cursor: pointer;
-    background-color: var(--primary); color: white;
+    background-color: var(--theme-color); color: white;
+    transition: background 0.3s;
   }
-  .btn-copy:active { opacity: 0.8; transform: scale(0.98); }
 </style>
 </head>
-<body>
+<body data-user="boy">
 
-<header>
-  <div class="top-bar">
-    <button class="btn-reset" onclick="resetCurrentMode()">リセット</button>
+<div class="user-switcher">
+  <button class="user-btn" data-target="boy" onclick="switchUser('boy')">👦 男の子</button>
+  <button class="user-btn" data-target="girl" onclick="switchUser('girl')">👧 女の子</button>
+</div>
+
+<div class="sub-header">
+  <div class="tools-bar">
+    <button class="btn-reset" onclick="resetCurrentData()">リセット</button>
   </div>
   <div class="tabs">
-    <div class="tab-btn active" id="tab-morning" onclick="switchMode('morning')">朝食</div>
-    <div class="tab-btn" id="tab-dinner" onclick="switchMode('dinner')">夕食</div>
+    <div class="tab-btn active" id="tab-morning" onclick="switchMeal('morning')">☀️ 朝食</div>
+    <div class="tab-btn" id="tab-dinner" onclick="switchMeal('dinner')">🌙 夕食</div>
   </div>
-</header>
+</div>
 
 <div class="container" id="list-container">
-  </div>
+  <div style="text-align:center; margin-top:50px; color:#999;">読み込み中...</div>
+</div>
 
 <div class="container others-area">
   <div class="other-box">
     <label class="other-label">その他（完食）</label>
-    <input type="text" id="other-finish" class="other-input" placeholder="例：ヨーグルト、みかん" oninput="saveData()">
+    <input type="text" id="other-finish" class="other-input" placeholder="例：ヨーグルト" oninput="saveData()">
   </div>
   <div class="other-box">
     <label class="other-label" style="color: var(--danger);">その他（残し）</label>
-    <input type="text" id="other-left" class="other-input" placeholder="例：漬物" oninput="saveData()">
+    <input type="text" id="other-left" class="other-input" placeholder="例：野菜" oninput="saveData()">
   </div>
 </div>
 
@@ -140,94 +169,133 @@
 </div>
 
 <script>
-  // ★★★ 設定エリア：ここでメニューを変更してください ★★★
-  const CATEGORIES = ["主食", "主菜", "副菜", "汁物", "デザート"];
-  
-  const MENUS = {
-    morning: {
-      "主食": ["食パン", "ロールパン", "おにぎり"],
-      "主菜": ["目玉焼き", "ウインナー", "ハム"],
-      "副菜": ["サラダ", "ブロッコリー"],
-      "汁物": ["コーンスープ", "牛乳", "野菜ジュース"],
-      "デザート": ["ヨーグルト", "バナナ", "りんご"]
-    },
-    dinner: {
-      "主食": ["ご飯", "炊き込みご飯", "うどん"],
-      "主菜": ["焼き魚", "ハンバーグ", "唐揚げ", "肉じゃが"],
-      "副菜": ["ほうれん草", "冷奴", "きんぴら"],
-      "汁物": ["味噌汁", "お吸い物"],
-      "デザート": ["みかん", "プリン", "アイス"]
-    }
+  // カテゴリ定義 (CSVの2列目に対応)
+  const CATEGORY_MAP = {
+    1: "主食",
+    2: "主菜",
+    3: "副菜",
+    4: "汁物",
+    5: "デザート"
   };
-  // ★★★ 設定エリア終了 ★★★
 
-  let currentMode = 'morning'; // 初期モード
+  // 状態管理
+  let currentUser = 'boy';   // boy or girl
+  let currentMeal = 'morning'; // morning or dinner
+  let menuData = { morning: {}, dinner: {} }; // CSVから読み込んだデータ
 
-  // 起動時の処理
-  window.onload = function() {
-    // 最後に開いていたモードがあれば復元
-    const lastMode = localStorage.getItem('fc_last_mode');
-    if (lastMode && MENUS[lastMode]) {
-      currentMode = lastMode;
-    }
-    renderPage();
+  // 初期化処理
+  window.onload = async function() {
+    // 最後に使っていたユーザーとモードを復元
+    const lastUser = localStorage.getItem('fc_last_user');
+    const lastMeal = localStorage.getItem('fc_last_meal');
+    if(lastUser) currentUser = lastUser;
+    if(lastMeal) currentMeal = lastMeal;
+
+    // UIに反映
+    updateTheme();
+    
+    // CSVファイルの読み込み
+    await loadMenuCsv();
   };
+
+  // CSV読み込み処理
+  async function loadMenuCsv() {
+    try {
+      // キャッシュ対策でタイムスタンプ付与
+      const response = await fetch('menu.csv?' + new Date().getTime());
+      if (!response.ok) throw new Error("CSVファイルが見つかりません");
+      
+      const text = await response.text();
+      parseCsv(text);
+      renderPage();
+      
+    } catch (e) {
+      document.getElementById('list-container').innerHTML = 
+        `<div style="color:red; text-align:center; margin-top:20px;">
+           エラー：menu.csvを読み込めませんでした。<br>
+           同じフォルダにmenu.csvがあるか確認してください。<br>
+           (PCで直接開くと動作しない場合があります)
+         </div>`;
+    }
+  }
+
+  // CSV解析処理
+  function parseCsv(text) {
+    const lines = text.split(/\r\n|\n/);
+    
+    // データ初期化
+    menuData = { morning: {}, dinner: {} };
+    Object.values(CATEGORY_MAP).forEach(cat => {
+        menuData.morning[cat] = [];
+        menuData.dinner[cat] = [];
+    });
+
+    lines.forEach(line => {
+      const parts = line.split(',');
+      if (parts.length < 3) return; // 不正な行はスキップ
+
+      const mealType = parts[0].trim(); // 1=朝, 2=夕
+      const catType = parts[1].trim();  // 1~5
+      const itemName = parts[2].trim();
+
+      const categoryName = CATEGORY_MAP[catType];
+      if (!categoryName) return;
+
+      if (mealType === '1') {
+        menuData.morning[categoryName].push(itemName);
+      } else if (mealType === '2') {
+        menuData.dinner[categoryName].push(itemName);
+      }
+    });
+  }
 
   // 画面描画
   function renderPage() {
-    // タブの表示切り替え
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(`tab-${currentMode}`).classList.add('active');
+    // タブのアクティブ化
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tab-${currentMeal}`).classList.add('active');
 
-    // リストの生成
+    // リスト生成
     const container = document.getElementById('list-container');
     container.innerHTML = '';
+    
+    // 現在の保存データを取得 (キー: fc_data_boy_morning 等)
+    const savedData = getSavedData();
 
-    // 現在の入力データを取得（復元用）
-    const savedData = getSavedDataForMode(currentMode);
+    // カテゴリごとに表示
+    Object.keys(menuData[currentMeal]).forEach(cat => {
+      const items = menuData[currentMeal][cat];
+      if (items.length === 0) return;
 
-    CATEGORIES.forEach(cat => {
-      const items = MENUS[currentMode][cat];
-      if (!items || items.length === 0) return;
-
-      // カテゴリタイトル
+      // 見出し
       const title = document.createElement('div');
       title.className = 'category-title';
       title.textContent = cat;
       container.appendChild(title);
 
-      // リストカード
+      // カード
       const card = document.createElement('div');
       card.className = 'list-card';
 
-      items.forEach((item, idx) => {
+      items.forEach(item => {
         const row = document.createElement('div');
         row.className = 'item-row';
         
-        // 保存された値があれば反映、なければ'none'
-        const savedValue = savedData.checks[item] || 'none';
-        
-        // 一意な名前を作成 (例: morning_主食_0)
-        const radioName = `radio_${item}`; 
+        const savedVal = savedData.checks[item] || 'none';
+        const radioName = `radio_${item}`; // 一意な名前
 
         row.innerHTML = `
           <div class="item-name">${item}</div>
           <div class="options">
-            <label>
-              <input type="radio" name="${radioName}" value="finish" 
-                ${savedValue === 'finish' ? 'checked' : ''} onchange="saveData()">
-              <span class="radio-label">完食</span>
-            </label>
-            <label>
-              <input type="radio" name="${radioName}" value="left" 
-                ${savedValue === 'left' ? 'checked' : ''} onchange="saveData()">
-              <span class="radio-label">残し</span>
-            </label>
-            <label>
-              <input type="radio" name="${radioName}" value="none" 
-                ${savedValue === 'none' ? 'checked' : ''} onchange="saveData()">
-              <span class="radio-label">―</span>
-            </label>
+            <label><input type="radio" name="${radioName}" value="finish" 
+              ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData()">
+              <span class="radio-label">完食</span></label>
+            <label><input type="radio" name="${radioName}" value="left" 
+              ${savedVal === 'left' ? 'checked' : ''} onchange="saveData()">
+              <span class="radio-label">残し</span></label>
+            <label><input type="radio" name="${radioName}" value="none" 
+              ${savedVal === 'none' ? 'checked' : ''} onchange="saveData()">
+              <span class="radio-label">―</span></label>
           </div>
         `;
         card.appendChild(row);
@@ -240,14 +308,27 @@
     document.getElementById('other-left').value = savedData.otherLeft || '';
   }
 
-  // モード切り替え
-  function switchMode(mode) {
-    currentMode = mode;
-    localStorage.setItem('fc_last_mode', mode); // モードを記憶
-    renderPage(); // 再描画
+  // ユーザー切り替え
+  function switchUser(user) {
+    currentUser = user;
+    localStorage.setItem('fc_last_user', user);
+    updateTheme();
+    renderPage(); // データ読み込み直し
   }
 
-  // データを保存（入力のたびに呼ばれる）
+  // 食事切り替え
+  function switchMeal(meal) {
+    currentMeal = meal;
+    localStorage.setItem('fc_last_meal', meal);
+    renderPage();
+  }
+
+  // テーマ更新
+  function updateTheme() {
+    document.body.setAttribute('data-user', currentUser);
+  }
+
+  // データ保存
   function saveData() {
     const data = {
       checks: {},
@@ -255,39 +336,42 @@
       otherLeft: document.getElementById('other-left').value
     };
 
-    // 全ラジオボタンの状態をスキャンして、選択されているものだけ保存
-    // アイテム名をキーとして保存（メニュー順が変わっても大丈夫なように）
     const inputs = document.querySelectorAll('input[type="radio"]:checked');
     inputs.forEach(input => {
-      // name="radio_食パン" から "食パン" を取り出す
       const itemName = input.name.replace('radio_', '');
       data.checks[itemName] = input.value;
     });
 
-    localStorage.setItem(`fc_data_${currentMode}`, JSON.stringify(data));
+    // ユーザー×食事ごとのキーで保存
+    const key = `fc_data_${currentUser}_${currentMeal}`;
+    localStorage.setItem(key, JSON.stringify(data));
   }
 
-  // 保存データを取得
-  function getSavedDataForMode(mode) {
-    const json = localStorage.getItem(`fc_data_${mode}`);
+  // データ取得
+  function getSavedData() {
+    const key = `fc_data_${currentUser}_${currentMeal}`;
+    const json = localStorage.getItem(key);
     return json ? JSON.parse(json) : { checks: {}, otherFinish: '', otherLeft: '' };
   }
 
-  // リセット機能
-  function resetCurrentMode() {
-    if(!confirm(`「${currentMode === 'morning' ? '朝食' : '夕食'}」の内容を全て消去しますか？`)) return;
+  // リセット
+  function resetCurrentData() {
+    const userName = currentUser === 'boy' ? '男の子' : '女の子';
+    const mealName = currentMeal === 'morning' ? '朝食' : '夕食';
     
-    localStorage.removeItem(`fc_data_${currentMode}`);
-    renderPage(); // 再描画で初期化
+    if(!confirm(`${userName}の${mealName}データを消去しますか？`)) return;
+    
+    const key = `fc_data_${currentUser}_${currentMeal}`;
+    localStorage.removeItem(key);
+    renderPage();
   }
 
-  // コピー機能
+  // コピー生成
   function generateAndCopy() {
     let finished = [];
     let leftovers = [];
 
-    // 現在の画面の入力状況を集計
-    // ラジオボタンの集計
+    // ラジオボタン集計
     const inputs = document.querySelectorAll('input[type="radio"]:checked');
     inputs.forEach(input => {
       const itemName = input.name.replace('radio_', '');
@@ -295,42 +379,41 @@
       if (input.value === 'left') leftovers.push(itemName);
     });
 
-    // その他欄の集計
+    // その他集計
     const otherF = document.getElementById('other-finish').value.trim();
     const otherL = document.getElementById('other-left').value.trim();
     if(otherF) finished.push(otherF);
     if(otherL) leftovers.push(otherL);
 
     // テキスト生成
+    const userName = currentUser === 'boy' ? '【男の子】' : '【女の子】';
     let resultText = "";
+    
+    // ★ポイント：コピー時に誰のデータか分かるように名前を入れるか、
+    // 必要なければ userName 変数を削除してください。
+    // resultText += `${userName} \n`; 
+
     if(finished.length > 0) resultText += `（完食）${finished.join("、")}\n`;
     if(leftovers.length > 0) resultText += `（残し）${leftovers.join("、")}`;
 
-    if(!resultText) {
+    if(!resultText || resultText === `${userName} \n`) {
       alert("選択された項目がありません");
       return;
     }
 
-    // クリップボードへコピー
     if (navigator.clipboard) {
         navigator.clipboard.writeText(resultText).then(() => {
-            alert("コピーしました！\n\n" + resultText);
-        }).catch(() => {
-            fallbackCopy(resultText);
+            alert("コピーしました！\n" + resultText);
         });
     } else {
-        fallbackCopy(resultText);
+        const ta = document.createElement('textarea');
+        ta.value = resultText;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        alert("コピーしました！\n" + resultText);
     }
-  }
-
-  function fallbackCopy(text) {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-    alert("コピーしました！\n\n" + text);
   }
 </script>
 </body>
