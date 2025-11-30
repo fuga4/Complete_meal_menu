@@ -33,7 +33,6 @@
     font-weight: bold; background: #f0f0f0; color: #999; cursor: pointer;
     font-size: 0.9rem; transition: 0.2s;
   }
-  /* 選択時のスタイル */
   body[data-user="boy"] .user-btn[data-target="boy"] {
     background: #007AFF; color: white; border-color: #0056b3;
   }
@@ -41,21 +40,30 @@
     background: #FF2D55; color: white; border-color: #d6002a;
   }
 
-  /* サブヘッダー（リセット・タブ） */
+  /* ツールバー（コピー・リセット・タブ） */
   .sub-header {
     background: #fff; position: sticky; top: 0; z-index: 100;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
   }
+  
+  /* ★変更点：ツールボタンエリアのスタイル調整 */
   .tools-bar {
-    display: flex; justify-content: flex-end; padding: 5px 15px;
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 8px 15px; border-bottom: 1px solid #f5f5f5;
   }
-  .btn-reset {
-    font-size: 0.8rem; color: #666; background: none; border: 1px solid #ccc;
-    padding: 4px 10px; border-radius: 12px; cursor: pointer;
+  .btn-tool {
+    font-size: 0.8rem; background: none; border: 1px solid #ccc;
+    padding: 5px 12px; border-radius: 15px; cursor: pointer; color: #555;
   }
+  /* パートナーへコピーボタンを目立たせる */
+  .btn-partner-copy {
+    border-color: var(--theme-color); color: var(--theme-color); font-weight: bold;
+    background: #fff; display: flex; align-items: center; gap: 4px;
+  }
+  .btn-partner-copy::before { content: '📋'; font-size: 1rem; }
 
   /* 食事タブ */
-  .tabs { display: flex; width: 100%; border-top: 1px solid #eee; }
+  .tabs { display: flex; width: 100%; }
   .tab-btn {
     flex: 1; padding: 12px; text-align: center; font-weight: bold; cursor: pointer;
     border-bottom: 3px solid transparent; color: #999;
@@ -141,7 +149,8 @@
 
 <div class="sub-header">
   <div class="tools-bar">
-    <button class="btn-reset" onclick="resetCurrentData()">リセット</button>
+    <button id="btn-partner-copy" class="btn-tool btn-partner-copy" onclick="copyToPartner()">👧へコピー</button>
+    <button class="btn-tool" onclick="resetCurrentData()">リセット</button>
   </div>
   <div class="tabs">
     <div class="tab-btn active" id="tab-morning" onclick="switchMeal('morning')">☀️ 朝食</div>
@@ -178,52 +187,38 @@
     5: "デザート"
   };
 
-  // 状態管理
-  let currentUser = 'boy';   // boy or girl
-  let currentMeal = 'morning'; // morning or dinner
-  let menuData = { morning: {}, dinner: {} }; // CSVから読み込んだデータ
+  let currentUser = 'boy';   
+  let currentMeal = 'morning'; 
+  let menuData = { morning: {}, dinner: {} }; 
 
-  // 初期化処理
   window.onload = async function() {
-    // 最後に使っていたユーザーとモードを復元
     const lastUser = localStorage.getItem('fc_last_user');
     const lastMeal = localStorage.getItem('fc_last_meal');
     if(lastUser) currentUser = lastUser;
     if(lastMeal) currentMeal = lastMeal;
 
-    // UIに反映
     updateTheme();
-    
-    // CSVファイルの読み込み
     await loadMenuCsv();
   };
 
-  // CSV読み込み処理
   async function loadMenuCsv() {
     try {
-      // キャッシュ対策でタイムスタンプ付与
       const response = await fetch('menu.csv?' + new Date().getTime());
       if (!response.ok) throw new Error("CSVファイルが見つかりません");
-      
       const text = await response.text();
       parseCsv(text);
       renderPage();
-      
     } catch (e) {
       document.getElementById('list-container').innerHTML = 
         `<div style="color:red; text-align:center; margin-top:20px;">
            エラー：menu.csvを読み込めませんでした。<br>
-           同じフォルダにmenu.csvがあるか確認してください。<br>
-           (PCで直接開くと動作しない場合があります)
+           (同じフォルダに menu.csv が必要です)
          </div>`;
     }
   }
 
-  // CSV解析処理
   function parseCsv(text) {
     const lines = text.split(/\r\n|\n/);
-    
-    // データ初期化
     menuData = { morning: {}, dinner: {} };
     Object.values(CATEGORY_MAP).forEach(cat => {
         menuData.morning[cat] = [];
@@ -232,10 +227,9 @@
 
     lines.forEach(line => {
       const parts = line.split(',');
-      if (parts.length < 3) return; // 不正な行はスキップ
-
-      const mealType = parts[0].trim(); // 1=朝, 2=夕
-      const catType = parts[1].trim();  // 1~5
+      if (parts.length < 3) return; 
+      const mealType = parts[0].trim(); 
+      const catType = parts[1].trim();  
       const itemName = parts[2].trim();
 
       const categoryName = CATEGORY_MAP[catType];
@@ -249,31 +243,32 @@
     });
   }
 
-  // 画面描画
   function renderPage() {
-    // タブのアクティブ化
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${currentMeal}`).classList.add('active');
 
-    // リスト生成
+    // ★変更点：ボタンのラベル更新
+    const partnerBtn = document.getElementById('btn-partner-copy');
+    if(currentUser === 'boy') {
+        partnerBtn.textContent = '👧へコピー'; // 女の子へ
+    } else {
+        partnerBtn.textContent = '👦へコピー'; // 男の子へ
+    }
+
     const container = document.getElementById('list-container');
     container.innerHTML = '';
     
-    // 現在の保存データを取得 (キー: fc_data_boy_morning 等)
-    const savedData = getSavedData();
+    const savedData = getSavedData(currentUser, currentMeal);
 
-    // カテゴリごとに表示
     Object.keys(menuData[currentMeal]).forEach(cat => {
       const items = menuData[currentMeal][cat];
       if (items.length === 0) return;
 
-      // 見出し
       const title = document.createElement('div');
       title.className = 'category-title';
       title.textContent = cat;
       container.appendChild(title);
 
-      // カード
       const card = document.createElement('div');
       card.className = 'list-card';
 
@@ -282,7 +277,7 @@
         row.className = 'item-row';
         
         const savedVal = savedData.checks[item] || 'none';
-        const radioName = `radio_${item}`; // 一意な名前
+        const radioName = `radio_${item}`;
 
         row.innerHTML = `
           <div class="item-name">${item}</div>
@@ -303,32 +298,27 @@
       container.appendChild(card);
     });
 
-    // その他欄の復元
     document.getElementById('other-finish').value = savedData.otherFinish || '';
     document.getElementById('other-left').value = savedData.otherLeft || '';
   }
 
-  // ユーザー切り替え
   function switchUser(user) {
     currentUser = user;
     localStorage.setItem('fc_last_user', user);
     updateTheme();
-    renderPage(); // データ読み込み直し
+    renderPage();
   }
 
-  // 食事切り替え
   function switchMeal(meal) {
     currentMeal = meal;
     localStorage.setItem('fc_last_meal', meal);
     renderPage();
   }
 
-  // テーマ更新
   function updateTheme() {
     document.body.setAttribute('data-user', currentUser);
   }
 
-  // データ保存
   function saveData() {
     const data = {
       checks: {},
@@ -342,14 +332,12 @@
       data.checks[itemName] = input.value;
     });
 
-    // ユーザー×食事ごとのキーで保存
     const key = `fc_data_${currentUser}_${currentMeal}`;
     localStorage.setItem(key, JSON.stringify(data));
   }
 
-  // データ取得
-  function getSavedData() {
-    const key = `fc_data_${currentUser}_${currentMeal}`;
+  function getSavedData(user, meal) {
+    const key = `fc_data_${user}_${meal}`;
     const json = localStorage.getItem(key);
     return json ? JSON.parse(json) : { checks: {}, otherFinish: '', otherLeft: '' };
   }
@@ -358,20 +346,40 @@
   function resetCurrentData() {
     const userName = currentUser === 'boy' ? '男の子' : '女の子';
     const mealName = currentMeal === 'morning' ? '朝食' : '夕食';
-    
     if(!confirm(`${userName}の${mealName}データを消去しますか？`)) return;
-    
     const key = `fc_data_${currentUser}_${currentMeal}`;
     localStorage.removeItem(key);
     renderPage();
   }
 
-  // コピー生成
+  // ★変更点：パートナーへコピー機能
+  function copyToPartner() {
+    // コピー先を判定
+    const targetUser = currentUser === 'boy' ? 'girl' : 'boy';
+    const targetName = currentUser === 'boy' ? '女の子' : '男の子';
+    const mealName = currentMeal === 'morning' ? '朝食' : '夕食';
+
+    if(!confirm(`現在表示中の内容を\n「${targetName}」の「${mealName}」に\n上書きコピーしますか？`)) return;
+
+    // 現在のデータを取得
+    const sourceKey = `fc_data_${currentUser}_${currentMeal}`;
+    const sourceData = localStorage.getItem(sourceKey);
+
+    if (sourceData) {
+        // コピー先に保存
+        const targetKey = `fc_data_${targetUser}_${currentMeal}`;
+        localStorage.setItem(targetKey, sourceData);
+        alert(`コピーしました！\n上部のボタンで「${targetName}」に切り替えて確認してください。`);
+    } else {
+        alert("コピーするデータがありません（何も入力されていません）。");
+    }
+  }
+
+  // クリップボードコピー
   function generateAndCopy() {
     let finished = [];
     let leftovers = [];
 
-    // ラジオボタン集計
     const inputs = document.querySelectorAll('input[type="radio"]:checked');
     inputs.forEach(input => {
       const itemName = input.name.replace('radio_', '');
@@ -379,24 +387,19 @@
       if (input.value === 'left') leftovers.push(itemName);
     });
 
-    // その他集計
     const otherF = document.getElementById('other-finish').value.trim();
     const otherL = document.getElementById('other-left').value.trim();
     if(otherF) finished.push(otherF);
     if(otherL) leftovers.push(otherL);
 
-    // テキスト生成
+    // ★変更点：名前を自動付与
     const userName = currentUser === 'boy' ? '【男の子】' : '【女の子】';
-    let resultText = "";
+    let resultText = `${userName} `;
     
-    // ★ポイント：コピー時に誰のデータか分かるように名前を入れるか、
-    // 必要なければ userName 変数を削除してください。
-    // resultText += `${userName} \n`; 
-
     if(finished.length > 0) resultText += `（完食）${finished.join("、")}\n`;
     if(leftovers.length > 0) resultText += `（残し）${leftovers.join("、")}`;
 
-    if(!resultText || resultText === `${userName} \n`) {
+    if(resultText === `${userName} `) { // 名前しか入っていない場合
       alert("選択された項目がありません");
       return;
     }
