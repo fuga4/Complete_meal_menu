@@ -150,8 +150,8 @@
     <button class="btn-tool" onclick="resetCurrentData()">リセット</button>
   </div>
   <div class="tabs">
-    <div class="tab-btn active" id="tab-morning" onclick="switchMeal('morning')">☀️ 朝食</div>
-    <div class="tab-btn" id="tab-dinner" onclick="switchMeal('dinner')">🌙 夕食</div>
+    <div class="tab-btn active" id="tab-morning" onclick="switchMeal('morning')">🌅 朝食</div>
+    <div class="tab-btn" id="tab-dinner" onclick="switchMeal('dinner')">🌃 夕食</div>
   </div>
 </div>
 
@@ -244,7 +244,6 @@
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${currentMeal}`).classList.add('active');
 
-    // ★修正点：コピーボタンのアイコンラベル
     const partnerBtn = document.getElementById('btn-partner-copy');
     if(currentUser === 'boy') {
         partnerBtn.textContent = '🎵へコピー'; // 女の子へ
@@ -367,7 +366,6 @@
     }
   }
 
-  // クリップボードコピー
   function generateAndCopy() {
     let finished = [];
     let leftovers = [];
@@ -384,7 +382,6 @@
     if(otherF) finished.push(otherF);
     if(otherL) leftovers.push(otherL);
 
-    // ★修正点：【男の子】などの名前を削除し、純粋なリストのみ作成
     let resultText = "";
     
     if(finished.length > 0) resultText += `（完食）${finished.join("、")}\n`;
