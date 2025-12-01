@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>食事記録</title>
+<title>食事記録（共有版）</title>
 
 <link rel="icon" href="icon.jpg">
 <link rel="apple-touch-icon" href="icon.jpg">
@@ -13,7 +13,6 @@
 <style>
   :root { --primary: #007AFF; --bg: #F2F2F7; --danger: #FF3B30; --success: #34C759; }
   
-  /* 男の子・女の子テーマカラー */
   body[data-user="boy"] { --theme-color: #007AFF; --theme-light: #E0F0FF; }
   body[data-user="girl"] { --theme-color: #FF2D55; --theme-light: #FFE0E6; }
 
@@ -23,7 +22,6 @@
     padding-bottom: 120px; transition: background 0.3s;
   }
 
-  /* ユーザー切り替えヘッダー */
   .user-switcher {
     display: flex; gap: 10px; padding: 10px 15px; background: #fff;
     justify-content: center; border-bottom: 1px solid #eee;
@@ -33,14 +31,9 @@
     font-weight: bold; background: #f0f0f0; color: #999; cursor: pointer;
     font-size: 0.9rem; transition: 0.2s;
   }
-  body[data-user="boy"] .user-btn[data-target="boy"] {
-    background: #007AFF; color: white; border-color: #0056b3;
-  }
-  body[data-user="girl"] .user-btn[data-target="girl"] {
-    background: #FF2D55; color: white; border-color: #d6002a;
-  }
+  body[data-user="boy"] .user-btn[data-target="boy"] { background: #007AFF; color: white; border-color: #0056b3; }
+  body[data-user="girl"] .user-btn[data-target="girl"] { background: #FF2D55; color: white; border-color: #d6002a; }
 
-  /* ツールバー */
   .sub-header {
     background: #fff; position: sticky; top: 0; z-index: 100;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
@@ -59,19 +52,15 @@
   }
   .btn-partner-copy::before { content: '📋'; font-size: 1rem; }
 
-  /* 食事タブ */
   .tabs { display: flex; width: 100%; }
   .tab-btn {
     flex: 1; padding: 12px; text-align: center; font-weight: bold; cursor: pointer;
     border-bottom: 3px solid transparent; color: #999;
   }
   .tab-btn.active {
-    border-bottom-color: var(--theme-color);
-    color: var(--theme-color);
-    background: var(--theme-light);
+    border-bottom-color: var(--theme-color); color: var(--theme-color); background: var(--theme-light);
   }
 
-  /* コンテンツ */
   .container { padding: 15px; }
   .category-title {
     font-size: 0.9rem; color: #666; margin: 20px 0 8px 5px; font-weight: bold;
@@ -93,7 +82,6 @@
   .item-row:last-child { border-bottom: none; }
   .item-name { font-weight: 500; font-size: 1rem; }
 
-  /* ラジオボタン */
   .options { display: flex; gap: 5px; }
   .radio-label {
     padding: 8px 10px; border-radius: 8px; border: 1px solid #ddd;
@@ -102,27 +90,17 @@
   }
   input[type="radio"] { display: none; }
   
-  input[value="finish"]:checked + .radio-label {
-    background-color: var(--success); color: white; border-color: var(--success);
-  }
-  input[value="left"]:checked + .radio-label {
-    background-color: var(--danger); color: white; border-color: var(--danger);
-  }
-  input[value="none"]:checked + .radio-label {
-    background-color: #eee; color: #aaa; border-color: #eee;
-  }
+  input[value="finish"]:checked + .radio-label { background-color: var(--success); color: white; border-color: var(--success); }
+  input[value="left"]:checked + .radio-label { background-color: var(--danger); color: white; border-color: var(--danger); }
+  input[value="none"]:checked + .radio-label { background-color: #eee; color: #aaa; border-color: #eee; }
 
-  /* その他入力 */
-  .other-box {
-    background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px;
-  }
+  .other-box { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; }
   .other-label { font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block; }
   .other-input {
     width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;
     font-size: 1rem; box-sizing: border-box; -webkit-appearance: none;
   }
 
-  /* フッター */
   .fixed-footer {
     position: fixed; bottom: 0; left: 0; width: 100%;
     background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
@@ -132,8 +110,7 @@
   .btn-copy {
     width: 100%; border: none; padding: 14px; border-radius: 12px;
     font-size: 1.1rem; font-weight: bold; cursor: pointer;
-    background-color: var(--theme-color); color: white;
-    transition: background 0.3s;
+    background-color: var(--theme-color); color: white; transition: background 0.3s;
   }
 </style>
 </head>
@@ -162,11 +139,11 @@
 <div class="container others-area">
   <div class="other-box">
     <label class="other-label">その他（完食）</label>
-    <input type="text" id="other-finish" class="other-input" placeholder="例：ヨーグルト" oninput="saveData()">
+    <input type="text" id="other-finish" class="other-input" placeholder="例：ヨーグルト" onchange="saveData()">
   </div>
   <div class="other-box">
     <label class="other-label" style="color: var(--danger);">その他（残し）</label>
-    <input type="text" id="other-left" class="other-input" placeholder="例：野菜" oninput="saveData()">
+    <input type="text" id="other-left" class="other-input" placeholder="例：野菜" onchange="saveData()">
   </div>
 </div>
 
@@ -174,87 +151,117 @@
   <button class="btn-copy" onclick="generateAndCopy()">コピーを作成</button>
 </div>
 
-<script>
-  // カテゴリ定義 (CSVの2列目に対応)
-  const CATEGORY_MAP = {
-    1: "主食",
-    2: "主菜",
-    3: "副菜",
-    4: "汁物",
-    5: "デザート"
-  };
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
+  // ★★★重要：ここをあなたのFirebase設定に書き換えてください★★★
+  const firebaseConfig = {
+    apiKey: "AIzaSyD...",
+    authDomain: "your-project.firebaseapp.com",
+    databaseURL: "https://your-project.firebaseio.com",
+    projectId: "your-project",
+    storageBucket: "your-project.appspot.com",
+    messagingSenderId: "123456...",
+    appId: "1:123456..."
+  };
+  // ★★★書き換えここまで★★★
+
+  // Firebaseの初期化
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // グローバル変数として使えるように設定
+  window.db = db;
+  window.set = set;
+  window.ref = ref;
+  window.onValue = onValue;
+  window.get = get;
+
+  // アプリのロジック開始
+  initApp();
+</script>
+
+<script>
+  // メインロジック（Firebase依存部分は window.db 等を使用）
+  const CATEGORY_MAP = { 1: "主食", 2: "主菜", 3: "副菜", 4: "汁物", 5: "デザート" };
   let currentUser = 'boy';   
   let currentMeal = 'morning'; 
   let menuData = { morning: {}, dinner: {} }; 
+  let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; // 現在表示中のデータ
 
-  window.onload = async function() {
+  function initApp() {
+    // ローカルストレージは「最後に開いた画面」の記憶だけに使用
     const lastUser = localStorage.getItem('fc_last_user');
     const lastMeal = localStorage.getItem('fc_last_meal');
     if(lastUser) currentUser = lastUser;
     if(lastMeal) currentMeal = lastMeal;
 
     updateTheme();
-    await loadMenuCsv();
-  };
+    loadMenuCsv().then(() => {
+      setupRealtimeListener(); // CSV読み込み完了後に同期開始
+    });
+  }
+
+  // Firebaseのリアルタイム監視を開始
+  function setupRealtimeListener() {
+    // 監視するデータの場所： users/boy/morning など
+    const dataPath = `users/${currentUser}/${currentMeal}`;
+    const dataRef = window.ref(window.db, dataPath);
+
+    // データが変更されるたびにここが動く
+    window.onValue(dataRef, (snapshot) => {
+      const val = snapshot.val();
+      if (val) {
+        currentFirebaseData = val;
+      } else {
+        // データがない場合は空にする
+        currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
+      }
+      renderPage(); // 画面を更新
+    });
+  }
 
   async function loadMenuCsv() {
     try {
       const response = await fetch('menu.csv?' + new Date().getTime());
-      if (!response.ok) throw new Error("CSVファイルが見つかりません");
+      if (!response.ok) throw new Error("CSV error");
       const text = await response.text();
       parseCsv(text);
-      renderPage();
     } catch (e) {
-      document.getElementById('list-container').innerHTML = 
-        `<div style="color:red; text-align:center; margin-top:20px;">
-           エラー：menu.csvを読み込めませんでした。<br>
-           (同じフォルダに menu.csv が必要です)
-         </div>`;
+      document.getElementById('list-container').innerHTML = `<div style="text-align:center; margin-top:20px;">menu.csv読込エラー</div>`;
     }
   }
 
   function parseCsv(text) {
     const lines = text.split(/\r\n|\n/);
     menuData = { morning: {}, dinner: {} };
-    Object.values(CATEGORY_MAP).forEach(cat => {
-        menuData.morning[cat] = [];
-        menuData.dinner[cat] = [];
-    });
-
+    Object.values(CATEGORY_MAP).forEach(cat => { menuData.morning[cat] = []; menuData.dinner[cat] = []; });
     lines.forEach(line => {
       const parts = line.split(',');
       if (parts.length < 3) return; 
-      const mealType = parts[0].trim(); 
-      const catType = parts[1].trim();  
-      const itemName = parts[2].trim();
-
-      const categoryName = CATEGORY_MAP[catType];
-      if (!categoryName) return;
-
-      if (mealType === '1') {
-        menuData.morning[categoryName].push(itemName);
-      } else if (mealType === '2') {
-        menuData.dinner[categoryName].push(itemName);
-      }
+      const [m, c, item] = parts;
+      const catName = CATEGORY_MAP[c.trim()];
+      if (!catName) return;
+      if (m.trim() === '1') menuData.morning[catName].push(item.trim());
+      else if (m.trim() === '2') menuData.dinner[catName].push(item.trim());
     });
   }
 
   function renderPage() {
+    // タブ等のUI更新
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${currentMeal}`).classList.add('active');
-
+    
     const partnerBtn = document.getElementById('btn-partner-copy');
-    if(currentUser === 'boy') {
-        partnerBtn.textContent = '🎵へコピー'; // 女の子へ
-    } else {
-        partnerBtn.textContent = '🌙へコピー'; // 男の子へ
-    }
+    partnerBtn.textContent = (currentUser === 'boy') ? '🎵へコピー' : '🌙へコピー';
 
     const container = document.getElementById('list-container');
     container.innerHTML = '';
     
-    const savedData = getSavedData(currentUser, currentMeal);
+    // データは currentFirebaseData を使用
+    const savedData = currentFirebaseData;
+    const checks = savedData.checks || {};
 
     Object.keys(menuData[currentMeal]).forEach(cat => {
       const items = menuData[currentMeal][cat];
@@ -271,8 +278,7 @@
       items.forEach(item => {
         const row = document.createElement('div');
         row.className = 'item-row';
-        
-        const savedVal = savedData.checks[item] || 'none';
+        const savedVal = checks[item] || 'none';
         const radioName = `radio_${item}`;
 
         row.innerHTML = `
@@ -294,27 +300,32 @@
       container.appendChild(card);
     });
 
-    document.getElementById('other-finish').value = savedData.otherFinish || '';
-    document.getElementById('other-left').value = savedData.otherLeft || '';
+    // その他欄もDBの値を入れる（入力中のフォーカスが外れないように注意が必要だが簡易実装）
+    // ※入力中におかしくなるのを防ぐため、現在フォーカスがなければ更新
+    const ofInput = document.getElementById('other-finish');
+    const olInput = document.getElementById('other-left');
+    if (document.activeElement !== ofInput) ofInput.value = savedData.otherFinish || '';
+    if (document.activeElement !== olInput) olInput.value = savedData.otherLeft || '';
   }
 
   function switchUser(user) {
     currentUser = user;
     localStorage.setItem('fc_last_user', user);
     updateTheme();
-    renderPage();
+    setupRealtimeListener(); // 監視先を切り替え
   }
 
   function switchMeal(meal) {
     currentMeal = meal;
     localStorage.setItem('fc_last_meal', meal);
-    renderPage();
+    setupRealtimeListener(); // 監視先を切り替え
   }
 
   function updateTheme() {
     document.body.setAttribute('data-user', currentUser);
   }
 
+  // データをFirebaseに保存
   function saveData() {
     const data = {
       checks: {},
@@ -328,25 +339,23 @@
       data.checks[itemName] = input.value;
     });
 
-    const key = `fc_data_${currentUser}_${currentMeal}`;
-    localStorage.setItem(key, JSON.stringify(data));
+    // Firebaseへ書き込み
+    const dataPath = `users/${currentUser}/${currentMeal}`;
+    window.set(window.ref(window.db, dataPath), data);
   }
 
-  function getSavedData(user, meal) {
-    const key = `fc_data_${user}_${meal}`;
-    const json = localStorage.getItem(key);
-    return json ? JSON.parse(json) : { checks: {}, otherFinish: '', otherLeft: '' };
-  }
-
+  // リセット（Firebaseのデータを削除）
   function resetCurrentData() {
     const userName = currentUser === 'boy' ? '男の子' : '女の子';
     const mealName = currentMeal === 'morning' ? '朝食' : '夕食';
     if(!confirm(`${userName}の${mealName}データを消去しますか？`)) return;
-    const key = `fc_data_${currentUser}_${currentMeal}`;
-    localStorage.removeItem(key);
-    renderPage();
+    
+    // 空データを上書き
+    const dataPath = `users/${currentUser}/${currentMeal}`;
+    window.set(window.ref(window.db, dataPath), null);
   }
 
+  // パートナーへコピー（Firebase上でデータをコピー）
   function copyToPartner() {
     const targetUser = currentUser === 'boy' ? 'girl' : 'boy';
     const targetName = currentUser === 'boy' ? '女の子' : '男の子';
@@ -354,36 +363,41 @@
 
     if(!confirm(`現在表示中の内容を\n「${targetName}」の「${mealName}」に\n上書きコピーしますか？`)) return;
 
-    const sourceKey = `fc_data_${currentUser}_${currentMeal}`;
-    const sourceData = localStorage.getItem(sourceKey);
+    // 現在のデータを取得して、相手のパスに書き込む
+    const sourcePath = `users/${currentUser}/${currentMeal}`;
+    const targetPath = `users/${targetUser}/${currentMeal}`;
 
-    if (sourceData) {
-        const targetKey = `fc_data_${targetUser}_${currentMeal}`;
-        localStorage.setItem(targetKey, sourceData);
-        alert(`コピーしました！\n上部のボタンで「${targetName}」に切り替えて確認してください。`);
-    } else {
+    window.get(window.ref(window.db, sourcePath)).then((snapshot) => {
+      if (snapshot.exists()) {
+        window.set(window.ref(window.db, targetPath), snapshot.val());
+        alert(`コピーしました！`);
+      } else {
         alert("コピーするデータがありません。");
-    }
+      }
+    });
   }
 
   function generateAndCopy() {
     let finished = [];
     let leftovers = [];
 
-    const inputs = document.querySelectorAll('input[type="radio"]:checked');
-    inputs.forEach(input => {
-      const itemName = input.name.replace('radio_', '');
-      if (input.value === 'finish') finished.push(itemName);
-      if (input.value === 'left') leftovers.push(itemName);
+    const savedData = currentFirebaseData;
+    const checks = savedData.checks || {};
+
+    // 現在のDBデータからテキスト作成
+    // (画面のラジオボタンではなくデータから作ることで確実にする)
+    Object.keys(checks).forEach(itemName => {
+        const val = checks[itemName];
+        if (val === 'finish') finished.push(itemName);
+        if (val === 'left') leftovers.push(itemName);
     });
 
-    const otherF = document.getElementById('other-finish').value.trim();
-    const otherL = document.getElementById('other-left').value.trim();
+    const otherF = savedData.otherFinish;
+    const otherL = savedData.otherLeft;
     if(otherF) finished.push(otherF);
     if(otherL) leftovers.push(otherL);
 
     let resultText = "";
-    
     if(finished.length > 0) resultText += `（完食）${finished.join("、")}\n`;
     if(leftovers.length > 0) resultText += `（残し）${leftovers.join("、")}`;
 
