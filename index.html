@@ -297,7 +297,7 @@
 
 <script>
   const CATEGORY_MAP = { 1: "主食", 2: "主菜", 3: "副菜", 4: "汁物", 5: "デザート" };
-  const AREA_CODE = "130000"; // 東京
+  // Open-Meteoを使うため、地域コードは不要になりました
 
   let currentUser = 'boy';   
   let currentMeal = 'morning'; 
@@ -321,101 +321,51 @@
     loadMenuCsv().then(() => {
       initChart();
       setupRealtimeListener(); 
-      getWeather(); 
+      getWeather(); // ★Open-Meteo版
     });
   }
 
-  // ★修正：気温取得の厳格化（不正確なフォールバックを廃止）
+  // ★修正：Open-Meteo APIを使った安定版天気取得
   async function getWeather() {
     try {
-      const url = `https://www.jma.go.jp/bosai/forecast/data/forecast/${AREA_CODE}.json`;
+      // 杉並区付近の座標 (Lat:35.6995, Lon:139.6355)
+      // dailyパラメータで最高・最低気温、降水確率、天気コードを取得
+      // timezone=Asia/Tokyo で日本時間に合わせる
+      const url = "https://api.open-meteo.com/v1/forecast?latitude=35.6995&longitude=139.6355&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo";
+      
       const res = await fetch(url);
       const data = await res.json();
 
+      if (!data || !data.daily) throw new Error("No data");
+
       const currentHour = new Date().getHours();
       const isPm = currentHour >= 12;
-
-      // ターゲット日付
-      const now = new Date();
-      if (isPm) { now.setDate(now.getDate() + 1); } 
-      const y = now.getFullYear();
-      const m = (now.getMonth() + 1).toString().padStart(2, '0');
-      const d = now.getDate().toString().padStart(2, '0');
-      const targetDateStr = `${y}-${m}-${d}`;
+      
+      // index: 0=今日, 1=明日
+      const targetIndex = isPm ? 1 : 0;
       const targetLabel = isPm ? "明日" : "今日";
 
-      // 1. 天気と降水確率
-      let weatherText = "--";
-      let weatherIcon = "";
-      let maxPop = "--";
+      const daily = data.daily;
+      
+      // 天気コード
+      const code = daily.weathercode[targetIndex];
+      const weatherText = getWmoWeatherText(code);
+      const weatherIcon = getWmoWeatherIcon(code);
 
-      const tsWeather = data[0].timeSeries.find(ts => ts.areas[0].weatherCodes);
-      const tsPops = data[0].timeSeries.find(ts => ts.areas[0].pops);
+      // 気温
+      const maxTemp = daily.temperature_2m_max[targetIndex];
+      const minTemp = daily.temperature_2m_min[targetIndex];
 
-      if (tsWeather) {
-          const idx = tsWeather.timeDefines.findIndex(td => td.startsWith(targetDateStr));
-          const code = (idx !== -1) ? tsWeather.areas[0].weatherCodes[idx] 
-                                    : tsWeather.areas[0].weatherCodes[isPm ? tsWeather.areas[0].weatherCodes.length-1 : 0];
-          if(code) {
-              weatherText = getSimpleWeather(code);
-              weatherIcon = getWeatherIcon(code);
-          }
-      }
-
-      if (tsPops) {
-          const indices = [];
-          tsPops.timeDefines.forEach((td, i) => { if (td.startsWith(targetDateStr)) indices.push(i); });
-          
-          let pops = [];
-          if (indices.length > 0) {
-              pops = indices.map(i => parseInt(tsPops.areas[0].pops[i])).filter(n => !isNaN(n));
-          } else {
-              const allPops = tsPops.areas[0].pops;
-              const slice = isPm ? allPops.slice(-4) : allPops.slice(0, 4);
-              pops = slice.map(p => parseInt(p)).filter(n => !isNaN(n));
-          }
-          if (pops.length > 0) maxPop = Math.max(...pops);
-      }
-
-      // 2. 気温 (厳格モード)
-      // 公式の「最低・最高気温」データのみを信用し、欠測している場合は「--」とする
-      // 3時間ごとのデータからの推測は誤差の元になるため廃止
-      let minTemp = "--";
-      let maxTemp = "--";
-
-      // data[1]（週間予報）にあるMinMaxが最も信頼できる
-      if (data[1] && data[1].timeSeries[1]) {
-          const weeklyTemps = data[1].timeSeries[1];
-          const idx = weeklyTemps.timeDefines.findIndex(td => td.startsWith(targetDateStr));
-          
-          if (idx !== -1) {
-              const area = weeklyTemps.areas[0];
-              // 空文字チェックを厳密に行う
-              if (area.tempsMin && area.tempsMin[idx] !== "" && area.tempsMin[idx] !== null) minTemp = area.tempsMin[idx];
-              if (area.tempsMax && area.tempsMax[idx] !== "" && area.tempsMax[idx] !== null) maxTemp = area.tempsMax[idx];
-          }
-      }
-
-      // もし週間予報になく（今日など）、詳細予報(data[0])にtempsMin/Maxがある場合
-      if ((minTemp === "--" || maxTemp === "--") && data[0].timeSeries) {
-          const tsMinMax = data[0].timeSeries.find(ts => ts.areas[0].tempsMax);
-          if (tsMinMax) {
-              const idx = tsMinMax.timeDefines.findIndex(td => td.startsWith(targetDateStr));
-              if (idx !== -1) {
-                  const area = tsMinMax.areas[0];
-                  if (area.tempsMin && area.tempsMin[idx] !== "" && area.tempsMin[idx] !== null) minTemp = area.tempsMin[idx];
-                  if (area.tempsMax && area.tempsMax[idx] !== "" && area.tempsMax[idx] !== null) maxTemp = area.tempsMax[idx];
-              }
-          }
-      }
+      // 降水確率
+      const pop = daily.precipitation_probability_max[targetIndex];
 
       // UI反映
       document.getElementById('weather-date-label').textContent = targetLabel + "：";
       document.getElementById('weather-icon').textContent = weatherIcon;
       document.getElementById('weather-text').textContent = weatherText;
-      document.getElementById('weather-pop').textContent = maxPop;
-      document.getElementById('temp-min').textContent = minTemp;
-      document.getElementById('temp-max').textContent = maxTemp;
+      document.getElementById('weather-pop').textContent = (pop !== null) ? pop : "--";
+      document.getElementById('temp-min').textContent = (minTemp !== null) ? Math.round(minTemp) : "--";
+      document.getElementById('temp-max').textContent = (maxTemp !== null) ? Math.round(maxTemp) : "--";
       
       document.getElementById('weather-bar').style.display = 'flex';
 
@@ -424,22 +374,28 @@
     }
   }
 
-  function getWeatherIcon(code) {
-    const c = parseInt(code);
-    if ([100, 101, 123, 124].includes(c)) return "☀️";
-    if ([102, 103, 104, 105, 106, 107, 108, 110, 111].includes(c)) return "⛅️";
-    if ([112, 113, 114, 115, 116, 117, 118, 119].includes(c)) return "☁️";
-    if (c >= 200 && c < 300) return "☁️";
-    if (c >= 300 && c < 400) return "☂️";
-    if (c >= 400) return "☃️";
-    return "🌥";
+  // WMO天気コード変換 (Open-Meteo用)
+  function getWmoWeatherIcon(code) {
+    if (code === 0) return "☀️";
+    if ([1, 2, 3].includes(code)) return "⛅️";
+    if ([45, 48].includes(code)) return "🌫️";
+    if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return "☂️";
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return "☃️";
+    if (code >= 95) return "⚡️";
+    return "☁️";
   }
-  function getSimpleWeather(code) {
-    const c = parseInt(code);
-    if (c < 200) return "晴れ";
-    if (c < 300) return "くもり";
-    if (c < 400) return "雨";
-    return "雪";
+  
+  function getWmoWeatherText(code) {
+    if (code === 0) return "晴天";
+    if ([1, 2, 3].includes(code)) return "くもり"; // 厳密には晴れ間あり
+    if ([45, 48].includes(code)) return "霧";
+    if ([51, 53, 55].includes(code)) return "霧雨";
+    if ([61, 63, 65].includes(code)) return "雨";
+    if ([71, 73, 75, 77].includes(code)) return "雪";
+    if ([80, 81, 82].includes(code)) return "にわか雨";
+    if ([85, 86].includes(code)) return "雪";
+    if (code >= 95) return "雷雨";
+    return "--";
   }
 
   function setupRealtimeListener() {
