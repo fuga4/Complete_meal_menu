@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>食事記録（グラフ付）</title>
+<title>食事記録（スコア付）</title>
 
 <link rel="icon" href="icon.jpg">
 <link rel="apple-touch-icon" href="icon.jpg">
@@ -20,7 +20,7 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
     background-color: var(--bg); margin: 0; padding: 0; color: #333;
-    padding-bottom: 200px; /* グラフエリア分余白を増やす */
+    padding-bottom: 220px; /* フッターとスコア表示分、余白を確保 */
     transition: background 0.3s;
   }
 
@@ -103,13 +103,27 @@
     font-size: 1rem; box-sizing: border-box; -webkit-appearance: none;
   }
 
-  /* グラフエリア */
+  /* グラフエリア（大きくしました） */
   .chart-container {
-    margin: 10px 15px 30px 15px; background: white; border-radius: 12px;
-    padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    height: 250px; position: relative;
+    margin: 10px 15px 15px 15px; background: white; border-radius: 12px;
+    padding: 10px 5px; /* パディングを減らす */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    height: 350px; /* ★変更：高さを増やしてグラフを大きく */
+    position: relative;
+    display: flex; flex-direction: column; align-items: center;
   }
-  .chart-title { text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 5px; font-weight: bold; }
+  .chart-title { text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 0px; font-weight: bold; width:100%; }
+
+  /* スコア表示エリア */
+  .score-area {
+    margin: 0 15px 30px 15px; background: white; border-radius: 12px;
+    padding: 15px; text-align: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border: 2px solid var(--theme-color);
+  }
+  .score-label { font-size: 0.9rem; color: #666; font-weight: bold; }
+  .score-value { font-size: 2.2rem; font-weight: 800; color: var(--theme-color); line-height: 1.2; }
+  .score-comment { font-size: 1rem; color: #333; margin-top: 5px; font-weight: bold; }
 
   .fixed-footer {
     position: fixed; bottom: 0; left: 0; width: 100%;
@@ -123,7 +137,6 @@
     background-color: var(--theme-color); color: white; transition: background 0.3s;
   }
 
-  /* リセットモーダル */
   .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.5); z-index: 999; display: none;
@@ -179,7 +192,15 @@
 
 <div class="chart-container">
   <div class="chart-title">栄養バランス（完食分）</div>
-  <canvas id="nutritionChart"></canvas>
+  <div style="flex:1; width:100%; position:relative;">
+    <canvas id="nutritionChart"></canvas>
+  </div>
+</div>
+
+<div class="score-area">
+  <div class="score-label">栄養スコア</div>
+  <div class="score-value" id="score-text">0 <span style="font-size:1rem;">pt</span></div>
+  <div class="score-comment" id="score-comment">データなし</div>
 </div>
 
 <div class="fixed-footer">
@@ -219,9 +240,9 @@
   let currentUser = 'boy';   
   let currentMeal = 'morning'; 
   let menuData = { morning: {}, dinner: {} }; 
-  let nutritionMap = {}; // 食品ごとの栄養スコアを保持
+  let nutritionMap = {}; 
   let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
-  let myChart = null; // チャートオブジェクト
+  let myChart = null;
 
   function initApp() {
     const lastUser = localStorage.getItem('fc_last_user');
@@ -231,7 +252,7 @@
 
     updateTheme();
     loadMenuCsv().then(() => {
-      initChart(); // チャート初期化
+      initChart();
       setupRealtimeListener(); 
     });
   }
@@ -248,7 +269,7 @@
         currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
       }
       renderPage(); 
-      updateChart(); // データ更新時にチャートも更新
+      updateChartAndScore(); // チャートとスコア更新
     });
   }
 
@@ -272,7 +293,7 @@
     
     lines.forEach(line => {
       const parts = line.split(',');
-      if (parts.length < 6) return; // 列数チェック(6列必要)
+      if (parts.length < 6) return;
       const [m, c, item, y, r, g] = parts;
       const catName = CATEGORY_MAP[c.trim()];
       
@@ -282,7 +303,6 @@
       if (m.trim() === '1') menuData.morning[catName].push(itemName);
       else if (m.trim() === '2') menuData.dinner[catName].push(itemName);
 
-      // 栄養スコアを保存
       nutritionMap[itemName] = {
         yellow: parseInt(y) || 0,
         red: parseInt(r) || 0,
@@ -347,7 +367,7 @@
     if (document.activeElement !== olInput) olInput.value = savedData.otherLeft || '';
   }
 
-  // --- グラフ関連処理 ---
+  // --- グラフ・スコア関連処理 ---
   function initChart() {
     const ctx = document.getElementById('nutritionChart').getContext('2d');
     
@@ -358,26 +378,32 @@
         datasets: [{
           label: '摂取バランス',
           data: [0, 0, 0],
-          backgroundColor: 'rgba(0, 122, 255, 0.2)', // 青っぽく
+          backgroundColor: 'rgba(0, 122, 255, 0.2)',
           borderColor: 'rgba(0, 122, 255, 1)',
-          borderWidth: 2,
-          pointBackgroundColor: ['#FFCC00', '#FF3B30', '#34C759'], // 各点の頂点色
+          borderWidth: 3,
+          pointRadius: 4,
+          pointBackgroundColor: ['#FFCC00', '#FF3B30', '#34C759'],
           pointBorderColor: '#fff',
-          pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: 'rgba(0, 122, 255, 1)'
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+            padding: 5 // ★余白を減らす
+        },
         scales: {
           r: {
             angleLines: { display: true },
             suggestedMin: 0,
-            suggestedMax: 10, // 最大値の目安
+            suggestedMax: 8, // ★最大値を10から8に減らして、グラフを広げる
             pointLabels: {
-              font: { size: 14, weight: 'bold' },
-              color: ['#F5A623', '#FF3B30', '#34C759'] // ラベル文字色
+              font: { size: 14, weight: 'bold' }, // 文字サイズ調整
+              color: '#555'
+            },
+            ticks: {
+                display: false, // 目盛り数字を消してスッキリさせる
+                stepSize: 2
             }
           }
         },
@@ -388,7 +414,7 @@
     });
   }
 
-  function updateChart() {
+  function updateChartAndScore() {
     if (!myChart) return;
 
     let totalY = 0;
@@ -397,7 +423,6 @@
 
     const checks = currentFirebaseData.checks || {};
 
-    // 完食したアイテムのスコアを集計
     Object.keys(checks).forEach(item => {
       if (checks[item] === 'finish' && nutritionMap[item]) {
         totalY += nutritionMap[item].yellow;
@@ -406,18 +431,36 @@
       }
     });
 
-    // その他入力（簡易的に各1点加算してみる、または無視）
-    // 今回はCSVにないものは不明なので加算しない仕様とします
-
-    // データの更新
+    // チャート更新
     myChart.data.datasets[0].data = [totalY, totalR, totalG];
     
-    // テーマカラーに合わせてグラフ色変更
     const color = currentUser === 'boy' ? '0, 122, 255' : '255, 45, 85';
     myChart.data.datasets[0].backgroundColor = `rgba(${color}, 0.2)`;
     myChart.data.datasets[0].borderColor = `rgba(${color}, 1)`;
-    
     myChart.update();
+
+    // スコア計算・表示
+    const totalScore = totalY + totalR + totalG;
+    const scoreTextEl = document.getElementById('score-text');
+    const commentEl = document.getElementById('score-comment');
+    
+    // カウントアップアニメーション風
+    scoreTextEl.innerHTML = `${totalScore} <span style="font-size:1rem;">pt</span>`;
+
+    // コメント分岐
+    let comment = "";
+    if (totalScore === 0) {
+        comment = "何を食べるかな？";
+    } else if (totalScore < 5) {
+        comment = "もう少し食べよう！🍙";
+    } else if (totalScore < 10) {
+        comment = "良い調子！その調子👍";
+    } else if (totalScore < 15) {
+        comment = "ナイスバランス！素晴らしい✨";
+    } else {
+        comment = "エネルギー満タン！元気100倍💪";
+    }
+    commentEl.textContent = comment;
   }
 
   // --- 以下、既存関数 ---
@@ -466,9 +509,7 @@
     closeModal();
     const userName = currentUser === 'boy' ? '男の子' : '女の子';
     const mealName = currentMeal === 'morning' ? '朝食' : '夕食';
-    
     if(!confirm(`「${userName}」の「${mealName}」のみリセットしますか？`)) return;
-    
     const dataPath = `users/${currentUser}/${currentMeal}`;
     window.set(window.ref(window.db, dataPath), null);
   }
@@ -476,7 +517,6 @@
   function resetAll() {
     closeModal();
     if(!confirm("【注意】\n全員の全てのデータを消去しますか？\nこの操作は取り消せません。")) return;
-    
     const dataPath = `users`;
     window.set(window.ref(window.db, dataPath), null);
   }
@@ -485,12 +525,9 @@
     const targetUser = currentUser === 'boy' ? 'girl' : 'boy';
     const targetName = currentUser === 'boy' ? '女の子' : '男の子';
     const mealName = currentMeal === 'morning' ? '朝食' : '夕食';
-
     if(!confirm(`現在表示中の内容を\n「${targetName}」の「${mealName}」に\n上書きコピーしますか？`)) return;
-
     const sourcePath = `users/${currentUser}/${currentMeal}`;
     const targetPath = `users/${targetUser}/${currentMeal}`;
-
     window.get(window.ref(window.db, sourcePath)).then((snapshot) => {
       if (snapshot.exists()) {
         window.set(window.ref(window.db, targetPath), snapshot.val());
@@ -541,7 +578,6 @@
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
-        
         if(confirm("コピーしました！\n\nコドモン（ブラウザ版）を起動しますか？")) {
             window.open('https://parents.codmon.com/contact', '_blank');
         }
