@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>食事記録（天気修正版）</title>
+<title>食事記録（天気改修版）</title>
 
 <link rel="icon" href="icon.jpg">
 <link rel="apple-touch-icon" href="icon.jpg">
@@ -24,7 +24,6 @@
     transition: background 0.3s;
   }
 
-  /* ユーザー切り替え */
   .user-switcher {
     display: flex; gap: 10px; padding: 10px 15px; background: #fff;
     justify-content: center; border-bottom: 1px solid #eee;
@@ -43,6 +42,7 @@
     padding: 8px 15px; font-size: 0.85rem; color: #555;
     display: flex; justify-content: center; align-items: center; gap: 10px;
     border-bottom: 1px solid #ddd; font-weight: bold;
+    min-height: 20px; /* ★高さ確保 */
   }
   .weather-icon { font-size: 1.1rem; margin-right: 4px; }
 
@@ -186,10 +186,10 @@
 <body data-user="boy">
 
 <div id="weather-bar" class="weather-bar" style="display:none;">
-  <span id="weather-date-label">--：</span>
+  <span id="weather-date-label"></span>
   <span id="weather-icon" class="weather-icon"></span>
-  <span id="weather-text">--</span>
-  <span style="margin-left:8px; color:#007AFF;">☂️<span id="weather-pop">--</span>%</span>
+  <span id="weather-text"></span>
+  <span style="margin-left:8px; color:#007AFF;">☂️<span id="weather-pop"></span>%</span>
   <span style="margin-left:8px;">
     <span style="color:#FF3B30;" id="temp-max">--</span>℃ / 
     <span style="color:#007AFF;" id="temp-min">--</span>℃
@@ -297,7 +297,6 @@
 
 <script>
   const CATEGORY_MAP = { 1: "主食", 2: "主菜", 3: "副菜", 4: "汁物", 5: "デザート" };
-  // 東京のコード（130000）で取得します
   const AREA_CODE = "130000";
 
   let currentUser = 'boy';   
@@ -326,7 +325,7 @@
     });
   }
 
-  // ★修正：堅牢な天気取得ロジック（配列の末尾を見る方式）
+  // ★修正：エラーに強い天気取得ロジック
   async function getWeather() {
     try {
       const url = `https://www.jma.go.jp/bosai/forecast/data/forecast/${AREA_CODE}.json`;
@@ -335,65 +334,70 @@
 
       const currentHour = new Date().getHours();
       const isPm = currentHour >= 12;
+
+      // データの存在確認
+      const timeSeries0 = data[0].timeSeries[0];
+      const timeSeries1 = data[0].timeSeries[1];
+      const timeSeries2 = data[0].timeSeries[2];
+
+      if (!timeSeries0 || !timeSeries0.areas || !timeSeries0.areas[0]) throw new Error("Weather data missing");
+
+      // ターゲットIndexの決定
+      // 天気配列(weatherCodes)は通常 [今日, 明日] or [今夜, 明日]
+      // PMなら明日の予報が欲しいので、配列の「最後」を取得すれば確実
+      // AMなら配列の「最初」
+      const weatherCodes = timeSeries0.areas[0].weatherCodes;
+      const targetIndex = isPm ? (weatherCodes.length - 1) : 0;
       
-      const forecast = data[0].timeSeries[0].areas[0];
-      const temps = data[0].timeSeries[1].areas[0];
-      const pops = data[0].timeSeries[2] ? data[0].timeSeries[2].areas[0] : null;
-
-      // ターゲット: AMなら配列の先頭(0)、PMなら配列の末尾(length-1)を狙う
-      // これで17:00発表データ(長さが短い)でもズレない
-      const weatherIndex = isPm ? (forecast.weatherCodes.length - 1) : 0;
-      const targetLabel = isPm ? "明日" : "今日";
-
-      // 天気
-      const weatherCode = forecast.weatherCodes[weatherIndex];
+      const weatherCode = weatherCodes[targetIndex];
       const weatherText = getSimpleWeather(weatherCode);
       const weatherIcon = getWeatherIcon(weatherCode);
+      const label = isPm ? "明日" : "今日";
 
-      // 気温（配列の末尾を取れば、常に「予報対象の最新」が取れる）
-      // ※PM(明日)の場合、tempsMax配列の最後が明日の最高気温
+      // 気温（temps）の取得
+      // 配列長が天気と合わないことがあるので、安全に取得する
       let minTemp = "--";
       let maxTemp = "--";
-      
-      const tempIndex = isPm ? (temps.tempsMax.length - 1) : 0;
 
-      // 気温配列があるかチェックして取得
-      if (temps.tempsMin && temps.tempsMin.length > 0) {
-         // 最低気温は配列要素数が足りないことがあるので安全策
-         const idx = Math.min(tempIndex, temps.tempsMin.length - 1);
-         minTemp = temps.tempsMin[idx];
+      if (timeSeries1 && timeSeries1.areas && timeSeries1.areas[0]) {
+        const temps = timeSeries1.areas[0];
+        // ほしいのは「ターゲット日の気温」
+        // PM(明日)なら配列の末尾、AM(今日)なら配列の先頭か2番目...だが、
+        // 簡易的に「PMならtempsMaxの最後」「AMならtempsMaxの最初」とする
+        if(temps.tempsMax && temps.tempsMax.length > 0) {
+            const idx = isPm ? (temps.tempsMax.length - 1) : 0;
+            maxTemp = temps.tempsMax[idx] || "--";
+        }
+        if(temps.tempsMin && temps.tempsMin.length > 0) {
+            const idx = isPm ? (temps.tempsMin.length - 1) : 0;
+            minTemp = temps.tempsMin[idx] || "--";
+        }
       }
-      if (temps.tempsMax && temps.tempsMax.length > 0) {
-         const idx = Math.min(tempIndex, temps.tempsMax.length - 1);
-         maxTemp = temps.tempsMax[idx];
-      }
 
-      if(!minTemp) minTemp = "--";
-      if(!maxTemp) maxTemp = "--";
-
-      // 降水確率
-      // PM(明日)なら配列の「後ろ4つ(明日分)」を取得して最大値
-      // AM(今日)なら配列の「前4つ(今日分)」を取得して最大値
+      // 降水確率（pops）の取得
       let maxPop = "--";
-      if (pops && pops.pops && pops.pops.length > 0) {
-          let targetPops = [];
-          if(isPm) {
-              // 後ろから4つ取る（明日の0時～24時付近）
-              targetPops = pops.pops.slice(-4);
-          } else {
-              // 前から4つ取る（今日の6時～24時付近）
-              targetPops = pops.pops.slice(0, 4);
-          }
-          
-          // 数値に変換して最大値を探す
-          const popNums = targetPops.map(p => parseInt(p)).filter(n => !isNaN(n));
-          if(popNums.length > 0) {
-             maxPop = Math.max(...popNums);
-          }
+      if (timeSeries2 && timeSeries2.areas && timeSeries2.areas[0]) {
+         const pops = timeSeries2.areas[0].pops;
+         if (pops && pops.length > 0) {
+             let targetPops = [];
+             // 配列を半分に割って、PMなら後半、AMなら前半を見る
+             const half = Math.ceil(pops.length / 2);
+             if (isPm) {
+                 targetPops = pops.slice(-half); // 後ろ半分
+             } else {
+                 targetPops = pops.slice(0, half); // 前半分
+             }
+             
+             // 数値変換して最大値取得
+             const validPops = targetPops.map(p => parseInt(p)).filter(n => !isNaN(n));
+             if (validPops.length > 0) {
+                 maxPop = Math.max(...validPops);
+             }
+         }
       }
 
       // UI反映
-      document.getElementById('weather-date-label').textContent = targetLabel + "：";
+      document.getElementById('weather-date-label').textContent = label + "：";
       document.getElementById('weather-icon').textContent = weatherIcon;
       document.getElementById('weather-text').textContent = weatherText;
       document.getElementById('weather-pop').textContent = maxPop;
@@ -403,7 +407,8 @@
       document.getElementById('weather-bar').style.display = 'flex';
 
     } catch (e) {
-      console.error("天気取得エラー", e);
+      console.log("Weather error: ", e);
+      // エラーが出てもアプリは止めない
     }
   }
 
