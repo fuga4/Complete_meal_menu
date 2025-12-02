@@ -325,7 +325,7 @@
     });
   }
 
-  // ★修正：気温取得のダブルチェック方式（週間予報→詳細予報）
+  // ★修正：気温取得の厳格化（不正確なフォールバックを廃止）
   async function getWeather() {
     try {
       const url = `https://www.jma.go.jp/bosai/forecast/data/forecast/${AREA_CODE}.json`;
@@ -344,7 +344,7 @@
       const targetDateStr = `${y}-${m}-${d}`;
       const targetLabel = isPm ? "明日" : "今日";
 
-      // 1. 天気と降水確率 (data[0]から取得)
+      // 1. 天気と降水確率
       let weatherText = "--";
       let weatherIcon = "";
       let maxPop = "--";
@@ -370,7 +370,6 @@
           if (indices.length > 0) {
               pops = indices.map(i => parseInt(tsPops.areas[0].pops[i])).filter(n => !isNaN(n));
           } else {
-              // 日付なしフォールバック
               const allPops = tsPops.areas[0].pops;
               const slice = isPm ? allPops.slice(-4) : allPops.slice(0, 4);
               pops = slice.map(p => parseInt(p)).filter(n => !isNaN(n));
@@ -378,43 +377,34 @@
           if (pops.length > 0) maxPop = Math.max(...pops);
       }
 
-      // 2. 気温 (data[1]：週間予報から取るのが確実)
+      // 2. 気温 (厳格モード)
+      // 公式の「最低・最高気温」データのみを信用し、欠測している場合は「--」とする
+      // 3時間ごとのデータからの推測は誤差の元になるため廃止
       let minTemp = "--";
       let maxTemp = "--";
 
-      // まず週間予報(data[1])からMinMaxを探す（これが一番正確）
+      // data[1]（週間予報）にあるMinMaxが最も信頼できる
       if (data[1] && data[1].timeSeries[1]) {
           const weeklyTemps = data[1].timeSeries[1];
           const idx = weeklyTemps.timeDefines.findIndex(td => td.startsWith(targetDateStr));
           
           if (idx !== -1) {
               const area = weeklyTemps.areas[0];
-              if (area.tempsMin && area.tempsMin[idx] && area.tempsMin[idx] !== "") minTemp = area.tempsMin[idx];
-              if (area.tempsMax && area.tempsMax[idx] && area.tempsMax[idx] !== "") maxTemp = area.tempsMax[idx];
+              // 空文字チェックを厳密に行う
+              if (area.tempsMin && area.tempsMin[idx] !== "" && area.tempsMin[idx] !== null) minTemp = area.tempsMin[idx];
+              if (area.tempsMax && area.tempsMax[idx] !== "" && area.tempsMax[idx] !== null) maxTemp = area.tempsMax[idx];
           }
       }
 
-      // 週間予報で取れなかった場合(今日分など)、data[0]の詳細予報から計算
-      if (minTemp === "--" || maxTemp === "--") {
-          const tsTemps0 = data[0].timeSeries.find(ts => ts.areas[0].temps);
-          if (tsTemps0) {
-              const indices = [];
-              tsTemps0.timeDefines.forEach((td, i) => { if (td.startsWith(targetDateStr)) indices.push(i); });
-              
-              let tempValues = [];
-              if (indices.length > 0) {
-                  tempValues = indices.map(i => parseFloat(tsTemps0.areas[0].temps[i])).filter(n => !isNaN(n));
-              } else {
-                  // フォールバック
-                  const allTemps = tsTemps0.areas[0].temps;
-                  const slice = isPm ? allTemps.slice(-4) : allTemps.slice(0, 4);
-                  tempValues = slice.map(v => parseFloat(v)).filter(n => !isNaN(n));
-              }
-
-              if (tempValues.length > 0) {
-                  // 計算で出した値で上書き（もし週間予報が--なら）
-                  if (maxTemp === "--") maxTemp = Math.max(...tempValues);
-                  if (minTemp === "--") minTemp = Math.min(...tempValues);
+      // もし週間予報になく（今日など）、詳細予報(data[0])にtempsMin/Maxがある場合
+      if ((minTemp === "--" || maxTemp === "--") && data[0].timeSeries) {
+          const tsMinMax = data[0].timeSeries.find(ts => ts.areas[0].tempsMax);
+          if (tsMinMax) {
+              const idx = tsMinMax.timeDefines.findIndex(td => td.startsWith(targetDateStr));
+              if (idx !== -1) {
+                  const area = tsMinMax.areas[0];
+                  if (area.tempsMin && area.tempsMin[idx] !== "" && area.tempsMin[idx] !== null) minTemp = area.tempsMin[idx];
+                  if (area.tempsMax && area.tempsMax[idx] !== "" && area.tempsMax[idx] !== null) maxTemp = area.tempsMax[idx];
               }
           }
       }
