@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>食事記録（スコア付）</title>
+<title>食事記録（天気切替版）</title>
 
 <link rel="icon" href="icon.jpg">
 <link rel="apple-touch-icon" href="icon.jpg">
@@ -24,7 +24,6 @@
     transition: background 0.3s;
   }
 
-  /* ユーザー切り替え */
   .user-switcher {
     display: flex; gap: 10px; padding: 10px 15px; background: #fff;
     justify-content: center; border-bottom: 1px solid #eee;
@@ -37,7 +36,15 @@
   body[data-user="boy"] .user-btn[data-target="boy"] { background: #007AFF; color: white; border-color: #0056b3; }
   body[data-user="girl"] .user-btn[data-target="girl"] { background: #FF2D55; color: white; border-color: #d6002a; }
 
-  /* ヘッダー類 */
+  /* 天気エリア */
+  .weather-bar {
+    background: linear-gradient(to right, #e0f7fa, #e1bee7);
+    padding: 8px 15px; font-size: 0.85rem; color: #555;
+    display: flex; justify-content: center; align-items: center; gap: 10px;
+    border-bottom: 1px solid #ddd; font-weight: bold;
+  }
+  .weather-icon { font-size: 1.1rem; margin-right: 4px; }
+
   .sub-header {
     background: #fff; position: sticky; top: 0; z-index: 100;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
@@ -65,7 +72,6 @@
     border-bottom-color: var(--theme-color); color: var(--theme-color); background: var(--theme-light);
   }
 
-  /* リスト */
   .container { padding: 15px; }
   .category-title {
     font-size: 0.9rem; color: #666; margin: 20px 0 8px 5px; font-weight: bold;
@@ -126,7 +132,6 @@
     font-size: 12px; line-height: 18px; text-align: center;
   }
 
-  /* スコアエリア */
   .score-area {
     margin: 0 15px 30px 15px; background: white; border-radius: 12px;
     padding: 15px; text-align: center;
@@ -137,7 +142,6 @@
   .score-value { font-size: 2.2rem; font-weight: 800; color: var(--theme-color); line-height: 1.2; }
   .score-comment { font-size: 1rem; color: #333; margin-top: 5px; font-weight: bold; }
 
-  /* フッター */
   .fixed-footer {
     position: fixed; bottom: 0; left: 0; width: 100%;
     background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
@@ -150,7 +154,6 @@
     background-color: var(--theme-color); color: white; transition: background 0.3s;
   }
 
-  /* モーダル共通 */
   .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.5); z-index: 999; display: none;
@@ -170,7 +173,6 @@
   .btn-reset-all { background: #ffe0e0; color: #FF3B30; }
   .btn-cancel { background: white; color: #007AFF; margin-top: 5px; }
 
-  /* 栄養説明モーダル用スタイル */
   .nutrition-list { text-align: left; font-size: 0.9rem; line-height: 1.5; }
   .nutrition-item { margin-bottom: 15px; }
   .nut-label { font-weight: bold; display: block; margin-bottom: 2px; }
@@ -181,6 +183,16 @@
 </style>
 </head>
 <body data-user="boy">
+
+<div id="weather-bar" class="weather-bar" style="display:none;">
+  <span id="weather-date-label">--：</span> <span id="weather-icon" class="weather-icon"></span>
+  <span id="weather-text">--</span>
+  <span style="margin-left:8px; color:#007AFF;">☂️<span id="weather-pop">--</span>%</span>
+  <span style="margin-left:8px;">
+    <span style="color:#FF3B30;" id="temp-max">--</span>℃ / 
+    <span style="color:#007AFF;" id="temp-min">--</span>℃
+  </span>
+</div>
 
 <div class="user-switcher">
   <button class="user-btn" data-target="boy" onclick="switchUser('boy')">🌙 男の子</button>
@@ -283,6 +295,9 @@
 
 <script>
   const CATEGORY_MAP = { 1: "主食", 2: "主菜", 3: "副菜", 4: "汁物", 5: "デザート" };
+  // ★変更：東京地方（杉並区含む）のコード
+  const AREA_CODE = "130010";
+
   let currentUser = 'boy';   
   let currentMeal = 'morning'; 
   let menuData = { morning: {}, dinner: {} }; 
@@ -291,23 +306,118 @@
   let myChart = null;
 
   function initApp() {
-    // ユーザーは前回の状態を保持
     const lastUser = localStorage.getItem('fc_last_user');
     if(lastUser) currentUser = lastUser;
 
-    // ★修正点：現在時刻で食事（朝・夜）を自動判定
     const currentHour = new Date().getHours();
     if (currentHour >= 12) {
-        currentMeal = 'dinner'; // 午後なら夕食
+        currentMeal = 'dinner';
     } else {
-        currentMeal = 'morning'; // 午前なら朝食
+        currentMeal = 'morning';
     }
 
     updateTheme();
     loadMenuCsv().then(() => {
       initChart();
       setupRealtimeListener(); 
+      getWeather(); 
     });
+  }
+
+  // ★天気取得ロジック（午前/午後で切り替え）
+  async function getWeather() {
+    try {
+      const url = `https://www.jma.go.jp/bosai/forecast/data/forecast/${AREA_CODE}.json`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      // 現在時刻でターゲットを決める
+      // 午前(0-11時)ならIndex=0(今日)、午後(12-23時)ならIndex=1(明日)
+      const currentHour = new Date().getHours();
+      const isPm = currentHour >= 12;
+      const targetIndex = isPm ? 1 : 0; 
+      const targetLabel = isPm ? "明日" : "今日";
+
+      const forecast = data[0].timeSeries[0].areas[0];
+      const temps = data[0].timeSeries[1].areas[0];
+      const pops = data[0].timeSeries[2] ? data[0].timeSeries[2].areas[0] : null;
+
+      // 天気
+      const weatherCode = forecast.weatherCodes[targetIndex];
+      const weatherText = getSimpleWeather(weatherCode);
+      const weatherIcon = getWeatherIcon(weatherCode);
+
+      // 気温（Index対応）
+      // ※気温配列は天気配列とインデックスが一致しない場合があるので安全策
+      let minTemp = "--";
+      let maxTemp = "--";
+      
+      // 気象庁APIの気温配列は可変長のため、インデックスを調整して取得
+      if (temps && temps.tempsMin && temps.tempsMin[targetIndex]) minTemp = temps.tempsMin[targetIndex];
+      if (temps && temps.tempsMax && temps.tempsMax[targetIndex]) maxTemp = temps.tempsMax[targetIndex];
+      
+      // nullなら"--"
+      if(!minTemp) minTemp = "--";
+      if(!maxTemp) maxTemp = "--";
+
+      // 降水確率（ターゲット日の最大値）
+      let maxPop = "--";
+      if (pops && pops.pops) {
+          // pops配列は6時間ごと。[T00-06, T06-12, T12-18, T18-24, N00-06...]
+          // 今日なら index 0-3, 明日なら index 4-7 近辺
+          // 簡易的に配列をスライスして最大値を取る
+          let targetPops = [];
+          if(!isPm) {
+              // 今日 (配列の前半)
+              targetPops = pops.pops.slice(0, 4).map(p => parseInt(p));
+          } else {
+              // 明日 (配列の後半、あるいは2番目のデータセット)
+              // ※配列が足りない場合もあるので安全に
+              if(pops.pops.length >= 8) {
+                   targetPops = pops.pops.slice(4, 8).map(p => parseInt(p));
+              } else {
+                   // データが少ない場合は後半全部
+                   targetPops = pops.pops.slice(Math.min(4, pops.pops.length)).map(p => parseInt(p));
+              }
+          }
+          
+          if(targetPops.length > 0) {
+             maxPop = Math.max(...targetPops.filter(n => !isNaN(n)));
+             if(!isFinite(maxPop)) maxPop = "--";
+          }
+      }
+
+      // UIへの反映
+      document.getElementById('weather-date-label').textContent = targetLabel + "：";
+      document.getElementById('weather-icon').textContent = weatherIcon;
+      document.getElementById('weather-text').textContent = weatherText;
+      document.getElementById('weather-pop').textContent = maxPop;
+      document.getElementById('temp-min').textContent = minTemp;
+      document.getElementById('temp-max').textContent = maxTemp;
+      
+      document.getElementById('weather-bar').style.display = 'flex';
+
+    } catch (e) {
+      console.error("天気取得エラー", e);
+    }
+  }
+
+  function getWeatherIcon(code) {
+    const c = parseInt(code);
+    if ([100, 101, 123, 124].includes(c)) return "☀️";
+    if ([102, 103, 104, 105, 106, 107, 108, 110, 111].includes(c)) return "⛅️";
+    if ([112, 113, 114, 115, 116, 117, 118, 119].includes(c)) return "☁️";
+    if (c >= 200 && c < 300) return "☁️";
+    if (c >= 300 && c < 400) return "☂️";
+    if (c >= 400) return "☃️";
+    return "🌥";
+  }
+  function getSimpleWeather(code) {
+    const c = parseInt(code);
+    if (c < 200) return "晴れ";
+    if (c < 300) return "くもり";
+    if (c < 400) return "雨";
+    return "雪";
   }
 
   function setupRealtimeListener() {
@@ -513,7 +623,6 @@
 
   function switchMeal(meal) {
     currentMeal = meal;
-    // ★修正点：食事モードの永続化はせず、一時的な切り替えのみ行う
     setupRealtimeListener(); 
   }
 
