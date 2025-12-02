@@ -325,7 +325,7 @@
     });
   }
 
-  // ★修正：気温データ取得を確実にする
+  // ★修正：気温計算ロジック（temps配列からMin/Maxを自力で探す）
   async function getWeather() {
     try {
       const url = `https://www.jma.go.jp/bosai/forecast/data/forecast/${AREA_CODE}.json`;
@@ -335,15 +335,22 @@
       const currentHour = new Date().getHours();
       const isPm = currentHour >= 12;
 
-      // ターゲット日付ラベル
+      // ターゲット日付
+      const now = new Date();
+      if (isPm) { now.setDate(now.getDate() + 1); } 
+      const y = now.getFullYear();
+      const m = (now.getMonth() + 1).toString().padStart(2, '0');
+      const d = now.getDate().toString().padStart(2, '0');
+      const targetDateStr = `${y}-${m}-${d}`;
       const targetLabel = isPm ? "明日" : "今日";
 
-      // データセットの検索
-      // timeSeries[0]:天気, timeSeries[1]:気温(Max/Min), timeSeries[2]:降水確率
-      // ※稀に順序が変わる可能性があるので、中身の特徴で探す
-      const tsWeather = data[0].timeSeries.find(ts => ts.areas[0].weatherCodes);
-      const tsTemps = data[0].timeSeries.find(ts => ts.areas[0].tempsMax || ts.areas[0].tempsMin);
-      const tsPops = data[0].timeSeries.find(ts => ts.areas[0].pops);
+      const ts0 = data[0].timeSeries[0]; // 天気
+      const ts2 = data[0].timeSeries[2]; // 降水確率 (index 2にあることが多い)
+      
+      // 気温データの探索
+      // JMAデータでは、気温は「temps」という配列で入ってくることが多い
+      // timeSeries配列の中から「temps」プロパティを持っているものを探す
+      const tsTemps = data[0].timeSeries.find(ts => ts.areas[0].temps);
 
       let weatherText = "--";
       let weatherIcon = "";
@@ -351,60 +358,88 @@
       let maxTemp = "--";
       let maxPop = "--";
 
-      // 1. 天気 (PMなら配列の末尾、AMなら先頭)
-      if (tsWeather) {
-          const codes = tsWeather.areas[0].weatherCodes;
-          const idx = isPm ? (codes.length - 1) : 0;
-          if (codes[idx]) {
-              weatherText = getSimpleWeather(codes[idx]);
-              weatherIcon = getWeatherIcon(codes[idx]);
+      // 1. 天気
+      if (ts0 && ts0.timeDefines) {
+          const idx = ts0.timeDefines.findIndex(td => td.startsWith(targetDateStr));
+          if (idx !== -1 && ts0.areas[0].weatherCodes[idx]) {
+              const code = ts0.areas[0].weatherCodes[idx];
+              weatherText = getSimpleWeather(code);
+              weatherIcon = getWeatherIcon(code);
+          } else {
+              const fbIdx = isPm ? (ts0.areas[0].weatherCodes.length - 1) : 0;
+              const code = ts0.areas[0].weatherCodes[fbIdx];
+              weatherText = getSimpleWeather(code);
+              weatherIcon = getWeatherIcon(code);
           }
       }
 
-      // 2. 気温 (有効な数値が入っているリストの、PMなら最後、AMなら最初)
-      if (tsTemps) {
-          const area = tsTemps.areas[0];
+      // 2. 気温（temps配列から抽出）
+      if (tsTemps && tsTemps.timeDefines && tsTemps.areas[0].temps) {
+          const indices = [];
+          tsTemps.timeDefines.forEach((td, i) => {
+              if (td.startsWith(targetDateStr)) indices.push(i);
+          });
+
+          // 日付一致する気温データを集める
+          let tempValues = [];
+          if (indices.length > 0) {
+              tempValues = indices.map(i => parseFloat(tsTemps.areas[0].temps[i])).filter(n => !isNaN(n));
+          } else {
+              // 日付が見つからない場合、AMなら前半、PMなら後半
+              const allTemps = tsTemps.areas[0].temps;
+              const half = Math.ceil(allTemps.length / 2);
+              const slice = isPm ? allTemps.slice(-half) : allTemps.slice(0, half);
+              tempValues = slice.map(v => parseFloat(v)).filter(n => !isNaN(n));
+          }
+
+          if (tempValues.length > 0) {
+              // 集めた気温の中から最大・最小を探す
+              maxTemp = Math.max(...tempValues);
+              minTemp = Math.min(...tempValues);
+              // もし1つしかデータがない場合は、それがMinかMaxか不明だがとりあえず両方に入れるか、
+              // あるいはAPIの仕様上、1つしかない場合はそれを表示する
+              if (tempValues.length === 1) {
+                  // 1つしかない場合（深夜など）、それを暫定表示
+              }
+          }
           
-          // 最低気温：空文字やnullを除去した配列を作る
-          if (area.tempsMin) {
-              const valids = area.tempsMin.filter(v => v !== "" && v !== null);
-              if (valids.length > 0) {
-                  minTemp = isPm ? valids[valids.length - 1] : valids[0];
-              }
+          // tempsMin/Maxがある場合のフォールバック（念のため）
+          // 別のTimeSeriesにMin/Max専用データがある場合もあるので探す
+          const tsMinMax = data[0].timeSeries.find(ts => ts.areas[0].tempsMax);
+          if (tsMinMax) {
+             // ここから取れれば上書きする（より正確な予報値のため）
+             const mmIdx = tsMinMax.timeDefines.findIndex(td => td.startsWith(targetDateStr));
+             if(mmIdx !== -1) {
+                 const min = tsMinMax.areas[0].tempsMin[mmIdx];
+                 const max = tsMinMax.areas[0].tempsMax[mmIdx];
+                 if(min && min !== "") minTemp = min;
+                 if(max && max !== "") maxTemp = max;
+             }
           }
+      }
+
+      // 3. 降水確率
+      if (ts2 && ts2.timeDefines && ts2.areas[0].pops) {
+          const indices = [];
+          ts2.timeDefines.forEach((td, i) => {
+              if (td.startsWith(targetDateStr)) indices.push(i);
+          });
           
-          // 最高気温
-          if (area.tempsMax) {
-              const valids = area.tempsMax.filter(v => v !== "" && v !== null);
-              if (valids.length > 0) {
-                  maxTemp = isPm ? valids[valids.length - 1] : valids[0];
-              }
+          let pops = [];
+          if (indices.length > 0) {
+              pops = indices.map(i => parseInt(ts2.areas[0].pops[i])).filter(n => !isNaN(n));
+          } else {
+              const allPops = ts2.areas[0].pops;
+              const half = Math.ceil(allPops.length / 2);
+              const slice = isPm ? allPops.slice(-half) : allPops.slice(0, half);
+              pops = slice.map(p => parseInt(p)).filter(n => !isNaN(n));
+          }
+
+          if (pops.length > 0) {
+              maxPop = Math.max(...pops);
           }
       }
 
-      // 3. 降水確率 (AMなら前半、PMなら後半の最大値)
-      if (tsPops) {
-          const pops = tsPops.areas[0].pops;
-          if (pops && pops.length > 0) {
-              let targetPops = [];
-              const half = Math.ceil(pops.length / 2);
-              
-              if (isPm) {
-                  // 後ろ半分 (明日)
-                  targetPops = pops.slice(-half);
-              } else {
-                  // 前半分 (今日)
-                  targetPops = pops.slice(0, half);
-              }
-              
-              const validPops = targetPops.map(p => parseInt(p)).filter(n => !isNaN(n));
-              if (validPops.length > 0) {
-                  maxPop = Math.max(...validPops);
-              }
-          }
-      }
-
-      // UI反映
       document.getElementById('weather-date-label').textContent = targetLabel + "：";
       document.getElementById('weather-icon').textContent = weatherIcon;
       document.getElementById('weather-text').textContent = weatherText;
