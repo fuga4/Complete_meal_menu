@@ -112,15 +112,14 @@
     padding: 10px 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     height: 350px; position: relative;
     display: flex; flex-direction: column; align-items: center;
-    cursor: pointer; /* タップできる感を出す */
+    cursor: pointer;
   }
-  .chart-container:active { background-color: #fafafa; } /* タップ時のフィードバック */
+  .chart-container:active { background-color: #fafafa; }
 
   .chart-title { 
     text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 0px; 
     font-weight: bold; width:100%; display: flex; justify-content: center; align-items: center; gap:5px;
   }
-  /* ヘルプアイコン風装飾 */
   .chart-title::after {
     content: '?'; display: inline-block; width: 18px; height: 18px; 
     background: #ccc; color: white; border-radius: 50%; 
@@ -292,10 +291,17 @@
   let myChart = null;
 
   function initApp() {
+    // ユーザーは前回の状態を保持
     const lastUser = localStorage.getItem('fc_last_user');
-    const lastMeal = localStorage.getItem('fc_last_meal');
     if(lastUser) currentUser = lastUser;
-    if(lastMeal) currentMeal = lastMeal;
+
+    // ★修正点：現在時刻で食事（朝・夜）を自動判定
+    const currentHour = new Date().getHours();
+    if (currentHour >= 12) {
+        currentMeal = 'dinner'; // 午後なら夕食
+    } else {
+        currentMeal = 'morning'; // 午前なら朝食
+    }
 
     updateTheme();
     loadMenuCsv().then(() => {
@@ -507,7 +513,7 @@
 
   function switchMeal(meal) {
     currentMeal = meal;
-    localStorage.setItem('fc_last_meal', meal);
+    // ★修正点：食事モードの永続化はせず、一時的な切り替えのみ行う
     setupRealtimeListener(); 
   }
 
@@ -532,7 +538,6 @@
     window.set(window.ref(window.db, dataPath), data);
   }
 
-  // --- モーダル制御 ---
   function showResetModal() {
     document.getElementById('reset-modal').style.display = 'flex';
   }
@@ -540,7 +545,6 @@
     document.getElementById('reset-modal').style.display = 'none';
   }
 
-  // ★追加：栄養説明モーダル制御
   function showNutritionHelp() {
     document.getElementById('nutrition-modal').style.display = 'flex';
   }
