@@ -24,6 +24,7 @@
     transition: background 0.3s;
   }
 
+  /* ユーザー切り替え */
   .user-switcher {
     display: flex; gap: 10px; padding: 10px 15px; background: #fff;
     justify-content: center; border-bottom: 1px solid #eee;
@@ -36,6 +37,7 @@
   body[data-user="boy"] .user-btn[data-target="boy"] { background: #007AFF; color: white; border-color: #0056b3; }
   body[data-user="girl"] .user-btn[data-target="girl"] { background: #FF2D55; color: white; border-color: #d6002a; }
 
+  /* 天気エリア */
   .weather-bar {
     background: linear-gradient(to right, #e0f7fa, #e1bee7);
     padding: 8px 15px; font-size: 0.85rem; color: #555;
@@ -323,7 +325,7 @@
     });
   }
 
-  // ★修正：天気・気温・降水確率の完全探索ロジック
+  // ★修正：気温取得のダブルチェック方式（週間予報→詳細予報）
   async function getWeather() {
     try {
       const url = `https://www.jma.go.jp/bosai/forecast/data/forecast/${AREA_CODE}.json`;
@@ -342,101 +344,82 @@
       const targetDateStr = `${y}-${m}-${d}`;
       const targetLabel = isPm ? "明日" : "今日";
 
-      // データを探索 (順番が変わっても大丈夫なようにプロパティで探す)
-      const tsWeather = data[0].timeSeries.find(ts => ts.areas[0].weatherCodes);
-      // tempsがあるものを探す（tempsMin/Maxの場合とtemps配列の場合がある）
-      const tsTemps = data[0].timeSeries.find(ts => ts.areas[0].temps || ts.areas[0].tempsMax);
-      const tsPops = data[0].timeSeries.find(ts => ts.areas[0].pops);
-
+      // 1. 天気と降水確率 (data[0]から取得)
       let weatherText = "--";
       let weatherIcon = "";
-      let minTemp = "--";
-      let maxTemp = "--";
       let maxPop = "--";
 
-      // 1. 天気
+      const tsWeather = data[0].timeSeries.find(ts => ts.areas[0].weatherCodes);
+      const tsPops = data[0].timeSeries.find(ts => ts.areas[0].pops);
+
       if (tsWeather) {
-          // 日付マッチ
           const idx = tsWeather.timeDefines.findIndex(td => td.startsWith(targetDateStr));
-          if (idx !== -1 && tsWeather.areas[0].weatherCodes[idx]) {
-              const code = tsWeather.areas[0].weatherCodes[idx];
-              weatherText = getSimpleWeather(code);
-              weatherIcon = getWeatherIcon(code);
-          } else {
-              // フォールバック（PMなら最後、AMなら最初）
-              const fbIdx = isPm ? (tsWeather.areas[0].weatherCodes.length - 1) : 0;
-              const code = tsWeather.areas[0].weatherCodes[fbIdx];
+          const code = (idx !== -1) ? tsWeather.areas[0].weatherCodes[idx] 
+                                    : tsWeather.areas[0].weatherCodes[isPm ? tsWeather.areas[0].weatherCodes.length-1 : 0];
+          if(code) {
               weatherText = getSimpleWeather(code);
               weatherIcon = getWeatherIcon(code);
           }
       }
 
-      // 2. 気温
-      if (tsTemps) {
-          const area = tsTemps.areas[0];
-          // 日付マッチ
-          const indices = [];
-          tsTemps.timeDefines.forEach((td, i) => {
-              if (td.startsWith(targetDateStr)) indices.push(i);
-          });
-
-          // A. Min/Max形式の場合
-          if (area.tempsMax) {
-              if(indices.length > 0) {
-                  // 日付が合う箇所のMin/Maxを取る
-                  const i = indices[0];
-                  if(area.tempsMax[i] && area.tempsMax[i] !== "") maxTemp = area.tempsMax[i];
-                  if(area.tempsMin && area.tempsMin[i] && area.tempsMin[i] !== "") minTemp = area.tempsMin[i];
-              } else {
-                  // 日付がないなら、PMなら配列の最後、AMなら最初
-                  const validMax = area.tempsMax.filter(v => v !== "" && v !== null);
-                  const validMin = area.tempsMin.filter(v => v !== "" && v !== null);
-                  if(validMax.length > 0) maxTemp = isPm ? validMax[validMax.length-1] : validMax[0];
-                  if(validMin.length > 0) minTemp = isPm ? validMin[validMin.length-1] : validMin[0];
-              }
-          }
-          // B. temps配列形式の場合（3時間毎の気温など）
-          else if (area.temps) {
-              let targetTemps = [];
-              if (indices.length > 0) {
-                  targetTemps = indices.map(i => parseFloat(area.temps[i])).filter(n => !isNaN(n));
-              } else {
-                  // 日付がないなら前半/後半で分割
-                  const allTemps = area.temps;
-                  const half = Math.ceil(allTemps.length / 2);
-                  const slice = isPm ? allTemps.slice(-half) : allTemps.slice(0, half);
-                  targetTemps = slice.map(v => parseFloat(v)).filter(n => !isNaN(n));
-              }
-              
-              if(targetTemps.length > 0) {
-                  maxTemp = Math.max(...targetTemps);
-                  minTemp = Math.min(...targetTemps);
-              }
-          }
-      }
-
-      // 3. 降水確率
       if (tsPops) {
           const indices = [];
-          tsPops.timeDefines.forEach((td, i) => {
-              if (td.startsWith(targetDateStr)) indices.push(i);
-          });
+          tsPops.timeDefines.forEach((td, i) => { if (td.startsWith(targetDateStr)) indices.push(i); });
           
           let pops = [];
           if (indices.length > 0) {
               pops = indices.map(i => parseInt(tsPops.areas[0].pops[i])).filter(n => !isNaN(n));
           } else {
+              // 日付なしフォールバック
               const allPops = tsPops.areas[0].pops;
-              const half = Math.ceil(allPops.length / 2);
-              const slice = isPm ? allPops.slice(-half) : allPops.slice(0, half);
+              const slice = isPm ? allPops.slice(-4) : allPops.slice(0, 4);
               pops = slice.map(p => parseInt(p)).filter(n => !isNaN(n));
           }
+          if (pops.length > 0) maxPop = Math.max(...pops);
+      }
 
-          if (pops.length > 0) {
-              maxPop = Math.max(...pops);
+      // 2. 気温 (data[1]：週間予報から取るのが確実)
+      let minTemp = "--";
+      let maxTemp = "--";
+
+      // まず週間予報(data[1])からMinMaxを探す（これが一番正確）
+      if (data[1] && data[1].timeSeries[1]) {
+          const weeklyTemps = data[1].timeSeries[1];
+          const idx = weeklyTemps.timeDefines.findIndex(td => td.startsWith(targetDateStr));
+          
+          if (idx !== -1) {
+              const area = weeklyTemps.areas[0];
+              if (area.tempsMin && area.tempsMin[idx] && area.tempsMin[idx] !== "") minTemp = area.tempsMin[idx];
+              if (area.tempsMax && area.tempsMax[idx] && area.tempsMax[idx] !== "") maxTemp = area.tempsMax[idx];
           }
       }
 
+      // 週間予報で取れなかった場合(今日分など)、data[0]の詳細予報から計算
+      if (minTemp === "--" || maxTemp === "--") {
+          const tsTemps0 = data[0].timeSeries.find(ts => ts.areas[0].temps);
+          if (tsTemps0) {
+              const indices = [];
+              tsTemps0.timeDefines.forEach((td, i) => { if (td.startsWith(targetDateStr)) indices.push(i); });
+              
+              let tempValues = [];
+              if (indices.length > 0) {
+                  tempValues = indices.map(i => parseFloat(tsTemps0.areas[0].temps[i])).filter(n => !isNaN(n));
+              } else {
+                  // フォールバック
+                  const allTemps = tsTemps0.areas[0].temps;
+                  const slice = isPm ? allTemps.slice(-4) : allTemps.slice(0, 4);
+                  tempValues = slice.map(v => parseFloat(v)).filter(n => !isNaN(n));
+              }
+
+              if (tempValues.length > 0) {
+                  // 計算で出した値で上書き（もし週間予報が--なら）
+                  if (maxTemp === "--") maxTemp = Math.max(...tempValues);
+                  if (minTemp === "--") minTemp = Math.min(...tempValues);
+              }
+          }
+      }
+
+      // UI反映
       document.getElementById('weather-date-label').textContent = targetLabel + "：";
       document.getElementById('weather-icon').textContent = weatherIcon;
       document.getElementById('weather-text').textContent = weatherText;
