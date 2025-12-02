@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>食事記録（共有版）</title>
+<title>食事記録（グラフ付）</title>
 
 <link rel="icon" href="icon.jpg">
 <link rel="apple-touch-icon" href="icon.jpg">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
   :root { --primary: #007AFF; --bg: #F2F2F7; --danger: #FF3B30; --success: #34C759; }
@@ -19,7 +20,8 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
     background-color: var(--bg); margin: 0; padding: 0; color: #333;
-    padding-bottom: 120px; transition: background 0.3s;
+    padding-bottom: 200px; /* グラフエリア分余白を増やす */
+    transition: background 0.3s;
   }
 
   .user-switcher {
@@ -101,6 +103,14 @@
     font-size: 1rem; box-sizing: border-box; -webkit-appearance: none;
   }
 
+  /* グラフエリア */
+  .chart-container {
+    margin: 10px 15px 30px 15px; background: white; border-radius: 12px;
+    padding: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    height: 250px; position: relative;
+  }
+  .chart-title { text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 5px; font-weight: bold; }
+
   .fixed-footer {
     position: fixed; bottom: 0; left: 0; width: 100%;
     background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
@@ -113,7 +123,7 @@
     background-color: var(--theme-color); color: white; transition: background 0.3s;
   }
 
-  /* ★追加：リセット用モーダルのスタイル */
+  /* リセットモーダル */
   .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.5); z-index: 999; display: none;
@@ -167,6 +177,11 @@
   </div>
 </div>
 
+<div class="chart-container">
+  <div class="chart-title">栄養バランス（完食分）</div>
+  <canvas id="nutritionChart"></canvas>
+</div>
+
 <div class="fixed-footer">
   <button class="btn-copy" onclick="generateAndCopy()">コピーを作成</button>
 </div>
@@ -187,11 +202,9 @@
   import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
   import { firebaseConfig } from "./config.js";
 
-  // Firebaseの初期化
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  // グローバル変数設定
   window.db = db;
   window.set = set;
   window.ref = ref;
@@ -206,7 +219,9 @@
   let currentUser = 'boy';   
   let currentMeal = 'morning'; 
   let menuData = { morning: {}, dinner: {} }; 
+  let nutritionMap = {}; // 食品ごとの栄養スコアを保持
   let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
+  let myChart = null; // チャートオブジェクト
 
   function initApp() {
     const lastUser = localStorage.getItem('fc_last_user');
@@ -216,6 +231,7 @@
 
     updateTheme();
     loadMenuCsv().then(() => {
+      initChart(); // チャート初期化
       setupRealtimeListener(); 
     });
   }
@@ -232,6 +248,7 @@
         currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
       }
       renderPage(); 
+      updateChart(); // データ更新時にチャートも更新
     });
   }
 
@@ -249,15 +266,28 @@
   function parseCsv(text) {
     const lines = text.split(/\r\n|\n/);
     menuData = { morning: {}, dinner: {} };
+    nutritionMap = {};
+    
     Object.values(CATEGORY_MAP).forEach(cat => { menuData.morning[cat] = []; menuData.dinner[cat] = []; });
+    
     lines.forEach(line => {
       const parts = line.split(',');
-      if (parts.length < 3) return; 
-      const [m, c, item] = parts;
+      if (parts.length < 6) return; // 列数チェック(6列必要)
+      const [m, c, item, y, r, g] = parts;
       const catName = CATEGORY_MAP[c.trim()];
+      
       if (!catName) return;
-      if (m.trim() === '1') menuData.morning[catName].push(item.trim());
-      else if (m.trim() === '2') menuData.dinner[catName].push(item.trim());
+      const itemName = item.trim();
+
+      if (m.trim() === '1') menuData.morning[catName].push(itemName);
+      else if (m.trim() === '2') menuData.dinner[catName].push(itemName);
+
+      // 栄養スコアを保存
+      nutritionMap[itemName] = {
+        yellow: parseInt(y) || 0,
+        red: parseInt(r) || 0,
+        green: parseInt(g) || 0
+      };
     });
   }
 
@@ -317,6 +347,80 @@
     if (document.activeElement !== olInput) olInput.value = savedData.otherLeft || '';
   }
 
+  // --- グラフ関連処理 ---
+  function initChart() {
+    const ctx = document.getElementById('nutritionChart').getContext('2d');
+    
+    myChart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: ['💛エネルギー', '❤️からだ作り', '💚調子を整える'],
+        datasets: [{
+          label: '摂取バランス',
+          data: [0, 0, 0],
+          backgroundColor: 'rgba(0, 122, 255, 0.2)', // 青っぽく
+          borderColor: 'rgba(0, 122, 255, 1)',
+          borderWidth: 2,
+          pointBackgroundColor: ['#FFCC00', '#FF3B30', '#34C759'], // 各点の頂点色
+          pointBorderColor: '#fff',
+          pointHoverBackgroundColor: '#fff',
+          pointHoverBorderColor: 'rgba(0, 122, 255, 1)'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          r: {
+            angleLines: { display: true },
+            suggestedMin: 0,
+            suggestedMax: 10, // 最大値の目安
+            pointLabels: {
+              font: { size: 14, weight: 'bold' },
+              color: ['#F5A623', '#FF3B30', '#34C759'] // ラベル文字色
+            }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+  }
+
+  function updateChart() {
+    if (!myChart) return;
+
+    let totalY = 0;
+    let totalR = 0;
+    let totalG = 0;
+
+    const checks = currentFirebaseData.checks || {};
+
+    // 完食したアイテムのスコアを集計
+    Object.keys(checks).forEach(item => {
+      if (checks[item] === 'finish' && nutritionMap[item]) {
+        totalY += nutritionMap[item].yellow;
+        totalR += nutritionMap[item].red;
+        totalG += nutritionMap[item].green;
+      }
+    });
+
+    // その他入力（簡易的に各1点加算してみる、または無視）
+    // 今回はCSVにないものは不明なので加算しない仕様とします
+
+    // データの更新
+    myChart.data.datasets[0].data = [totalY, totalR, totalG];
+    
+    // テーマカラーに合わせてグラフ色変更
+    const color = currentUser === 'boy' ? '0, 122, 255' : '255, 45, 85';
+    myChart.data.datasets[0].backgroundColor = `rgba(${color}, 0.2)`;
+    myChart.data.datasets[0].borderColor = `rgba(${color}, 1)`;
+    
+    myChart.update();
+  }
+
+  // --- 以下、既存関数 ---
   function switchUser(user) {
     currentUser = user;
     localStorage.setItem('fc_last_user', user);
@@ -351,7 +455,6 @@
     window.set(window.ref(window.db, dataPath), data);
   }
 
-  // ★追加機能：モーダル表示
   function showResetModal() {
     document.getElementById('reset-modal').style.display = 'flex';
   }
@@ -359,7 +462,6 @@
     document.getElementById('reset-modal').style.display = 'none';
   }
 
-  // ★追加機能：個別リセット
   function resetCurrent() {
     closeModal();
     const userName = currentUser === 'boy' ? '男の子' : '女の子';
@@ -371,12 +473,10 @@
     window.set(window.ref(window.db, dataPath), null);
   }
 
-  // ★追加機能：全リセット
   function resetAll() {
     closeModal();
     if(!confirm("【注意】\n全員の全てのデータを消去しますか？\nこの操作は取り消せません。")) return;
     
-    // usersノード全体を削除
     const dataPath = `users`;
     window.set(window.ref(window.db, dataPath), null);
   }
