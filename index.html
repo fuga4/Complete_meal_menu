@@ -112,6 +112,26 @@
     font-size: 1.1rem; font-weight: bold; cursor: pointer;
     background-color: var(--theme-color); color: white; transition: background 0.3s;
   }
+
+  /* ★追加：リセット用モーダルのスタイル */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); z-index: 999; display: none;
+    align-items: center; justify-content: center;
+  }
+  .modal-content {
+    background: white; width: 85%; max-width: 320px; border-radius: 16px;
+    padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-align: center;
+  }
+  .modal-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; }
+  .modal-btn-group { display: flex; flex-direction: column; gap: 10px; }
+  .modal-btn {
+    padding: 12px; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; font-weight: bold;
+  }
+  .btn-reset-one { background: #f0f0f0; color: #333; }
+  .btn-reset-all { background: #ffe0e0; color: #FF3B30; }
+  .btn-cancel { background: white; color: #007AFF; margin-top: 5px; }
+
 </style>
 </head>
 <body data-user="boy">
@@ -124,7 +144,7 @@
 <div class="sub-header">
   <div class="tools-bar">
     <button id="btn-partner-copy" class="btn-tool btn-partner-copy" onclick="copyToPartner()">🎵へコピー</button>
-    <button class="btn-tool" onclick="resetCurrentData()">リセット</button>
+    <button class="btn-tool" onclick="showResetModal()">リセット</button>
   </div>
   <div class="tabs">
     <div class="tab-btn active" id="tab-morning" onclick="switchMeal('morning')">🌅 朝食</div>
@@ -151,29 +171,37 @@
   <button class="btn-copy" onclick="generateAndCopy()">コピーを作成</button>
 </div>
 
+<div id="reset-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-title">リセットメニュー</div>
+    <div class="modal-btn-group">
+      <button class="modal-btn btn-reset-one" onclick="resetCurrent()">表示中の食事のみリセット</button>
+      <button class="modal-btn btn-reset-all" onclick="resetAll()">全データをリセット<br><span style="font-size:0.8rem">(全員・全食)</span></button>
+      <button class="modal-btn btn-cancel" onclick="closeModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
-  // ★変更点：外部ファイルから設定を読み込む
   import { firebaseConfig } from "./config.js";
 
   // Firebaseの初期化
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  // グローバル変数として使えるように設定
+  // グローバル変数設定
   window.db = db;
   window.set = set;
   window.ref = ref;
   window.onValue = onValue;
   window.get = get;
 
-  // アプリのロジック開始
   initApp();
 </script>
 
 <script>
-  // メインロジック（Firebase依存部分は window.db 等を使用）
   const CATEGORY_MAP = { 1: "主食", 2: "主菜", 3: "副菜", 4: "汁物", 5: "デザート" };
   let currentUser = 'boy';   
   let currentMeal = 'morning'; 
@@ -323,12 +351,33 @@
     window.set(window.ref(window.db, dataPath), data);
   }
 
-  function resetCurrentData() {
+  // ★追加機能：モーダル表示
+  function showResetModal() {
+    document.getElementById('reset-modal').style.display = 'flex';
+  }
+  function closeModal() {
+    document.getElementById('reset-modal').style.display = 'none';
+  }
+
+  // ★追加機能：個別リセット
+  function resetCurrent() {
+    closeModal();
     const userName = currentUser === 'boy' ? '男の子' : '女の子';
     const mealName = currentMeal === 'morning' ? '朝食' : '夕食';
-    if(!confirm(`${userName}の${mealName}データを消去しますか？`)) return;
+    
+    if(!confirm(`「${userName}」の「${mealName}」のみリセットしますか？`)) return;
     
     const dataPath = `users/${currentUser}/${currentMeal}`;
+    window.set(window.ref(window.db, dataPath), null);
+  }
+
+  // ★追加機能：全リセット
+  function resetAll() {
+    closeModal();
+    if(!confirm("【注意】\n全員の全てのデータを消去しますか？\nこの操作は取り消せません。")) return;
+    
+    // usersノード全体を削除
+    const dataPath = `users`;
     window.set(window.ref(window.db, dataPath), null);
   }
 
