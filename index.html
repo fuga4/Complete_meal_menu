@@ -154,18 +154,8 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
-
-  // ★★★重要：ここをあなたのFirebase設定に書き換えてください★★★
-  const firebaseConfig = {
-    apiKey: "AIzaSyD...",
-    authDomain: "your-project.firebaseapp.com",
-    databaseURL: "https://your-project.firebaseio.com",
-    projectId: "your-project",
-    storageBucket: "your-project.appspot.com",
-    messagingSenderId: "123456...",
-    appId: "1:123456..."
-  };
-  // ★★★書き換えここまで★★★
+  // ★変更点：外部ファイルから設定を読み込む
+  import { firebaseConfig } from "./config.js";
 
   // Firebaseの初期化
   const app = initializeApp(firebaseConfig);
@@ -188,10 +178,9 @@
   let currentUser = 'boy';   
   let currentMeal = 'morning'; 
   let menuData = { morning: {}, dinner: {} }; 
-  let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; // 現在表示中のデータ
+  let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
 
   function initApp() {
-    // ローカルストレージは「最後に開いた画面」の記憶だけに使用
     const lastUser = localStorage.getItem('fc_last_user');
     const lastMeal = localStorage.getItem('fc_last_meal');
     if(lastUser) currentUser = lastUser;
@@ -199,26 +188,22 @@
 
     updateTheme();
     loadMenuCsv().then(() => {
-      setupRealtimeListener(); // CSV読み込み完了後に同期開始
+      setupRealtimeListener(); 
     });
   }
 
-  // Firebaseのリアルタイム監視を開始
   function setupRealtimeListener() {
-    // 監視するデータの場所： users/boy/morning など
     const dataPath = `users/${currentUser}/${currentMeal}`;
     const dataRef = window.ref(window.db, dataPath);
 
-    // データが変更されるたびにここが動く
     window.onValue(dataRef, (snapshot) => {
       const val = snapshot.val();
       if (val) {
         currentFirebaseData = val;
       } else {
-        // データがない場合は空にする
         currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
       }
-      renderPage(); // 画面を更新
+      renderPage(); 
     });
   }
 
@@ -249,7 +234,6 @@
   }
 
   function renderPage() {
-    // タブ等のUI更新
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${currentMeal}`).classList.add('active');
     
@@ -259,7 +243,6 @@
     const container = document.getElementById('list-container');
     container.innerHTML = '';
     
-    // データは currentFirebaseData を使用
     const savedData = currentFirebaseData;
     const checks = savedData.checks || {};
 
@@ -369,7 +352,6 @@
     });
   }
 
-  // ★変更点：コドモン起動確認機能を追加
   function generateAndCopy() {
     let finished = [];
     let leftovers = [];
@@ -397,16 +379,13 @@
       return;
     }
 
-    // クリップボードAPIが使える場合
     if (navigator.clipboard) {
         navigator.clipboard.writeText(resultText).then(() => {
-            // 確認ダイアログ
             if(confirm("コピーしました！\n\nコドモン（ブラウザ版）を起動しますか？")) {
                 window.open('https://parents.codmon.com/contact', '_blank');
             }
         });
     } else {
-        // フォールバック処理
         const ta = document.createElement('textarea');
         ta.value = resultText;
         document.body.appendChild(ta);
@@ -414,7 +393,6 @@
         document.execCommand('copy');
         document.body.removeChild(ta);
         
-        // 確認ダイアログ
         if(confirm("コピーしました！\n\nコドモン（ブラウザ版）を起動しますか？")) {
             window.open('https://parents.codmon.com/contact', '_blank');
         }
