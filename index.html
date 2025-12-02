@@ -156,23 +156,15 @@
   import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
   // ★★★重要：ここをあなたのFirebase設定に書き換えてください★★★
-  //const firebaseConfig = {
-    //apiKey: "AIzaSyD...",
-    //authDomain: "your-project.firebaseapp.com",
-    //databaseURL: "https://your-project.firebaseio.com",
-    //projectId: "your-project",
-    //storageBucket: "your-project.appspot.com",
-    //messagingSenderId: "123456...",
-    //appId: "1:123456..."
-  //};
   const firebaseConfig = {
-    apiKey: "AIzaSyDLcLq8M7UWBuDrRbq7OiFTmrBqy38hiKk",
-    authDomain: "complete-meal-menu.firebaseapp.com",
-    projectId: "complete-meal-menu",
-    storageBucket: "complete-meal-menu.firebasestorage.app",
-    messagingSenderId: "75250581224",
-    appId: "1:75250581224:web:cb8bca1f22dcd66b38d35d"
-  };
+    apiKey: "AIzaSyD...",
+    authDomain: "your-project.firebaseapp.com",
+    databaseURL: "https://your-project.firebaseio.com",
+    projectId: "your-project",
+    storageBucket: "your-project.appspot.com",
+    messagingSenderId: "123456...",
+    appId: "1:123456..."
+  };
   // ★★★書き換えここまで★★★
 
   // Firebaseの初期化
@@ -308,8 +300,6 @@
       container.appendChild(card);
     });
 
-    // その他欄もDBの値を入れる（入力中のフォーカスが外れないように注意が必要だが簡易実装）
-    // ※入力中におかしくなるのを防ぐため、現在フォーカスがなければ更新
     const ofInput = document.getElementById('other-finish');
     const olInput = document.getElementById('other-left');
     if (document.activeElement !== ofInput) ofInput.value = savedData.otherFinish || '';
@@ -320,20 +310,19 @@
     currentUser = user;
     localStorage.setItem('fc_last_user', user);
     updateTheme();
-    setupRealtimeListener(); // 監視先を切り替え
+    setupRealtimeListener(); 
   }
 
   function switchMeal(meal) {
     currentMeal = meal;
     localStorage.setItem('fc_last_meal', meal);
-    setupRealtimeListener(); // 監視先を切り替え
+    setupRealtimeListener(); 
   }
 
   function updateTheme() {
     document.body.setAttribute('data-user', currentUser);
   }
 
-  // データをFirebaseに保存
   function saveData() {
     const data = {
       checks: {},
@@ -347,23 +336,19 @@
       data.checks[itemName] = input.value;
     });
 
-    // Firebaseへ書き込み
     const dataPath = `users/${currentUser}/${currentMeal}`;
     window.set(window.ref(window.db, dataPath), data);
   }
 
-  // リセット（Firebaseのデータを削除）
   function resetCurrentData() {
     const userName = currentUser === 'boy' ? '男の子' : '女の子';
     const mealName = currentMeal === 'morning' ? '朝食' : '夕食';
     if(!confirm(`${userName}の${mealName}データを消去しますか？`)) return;
     
-    // 空データを上書き
     const dataPath = `users/${currentUser}/${currentMeal}`;
     window.set(window.ref(window.db, dataPath), null);
   }
 
-  // パートナーへコピー（Firebase上でデータをコピー）
   function copyToPartner() {
     const targetUser = currentUser === 'boy' ? 'girl' : 'boy';
     const targetName = currentUser === 'boy' ? '女の子' : '男の子';
@@ -371,7 +356,6 @@
 
     if(!confirm(`現在表示中の内容を\n「${targetName}」の「${mealName}」に\n上書きコピーしますか？`)) return;
 
-    // 現在のデータを取得して、相手のパスに書き込む
     const sourcePath = `users/${currentUser}/${currentMeal}`;
     const targetPath = `users/${targetUser}/${currentMeal}`;
 
@@ -385,6 +369,7 @@
     });
   }
 
+  // ★変更点：コドモン起動確認機能を追加
   function generateAndCopy() {
     let finished = [];
     let leftovers = [];
@@ -392,8 +377,6 @@
     const savedData = currentFirebaseData;
     const checks = savedData.checks || {};
 
-    // 現在のDBデータからテキスト作成
-    // (画面のラジオボタンではなくデータから作ることで確実にする)
     Object.keys(checks).forEach(itemName => {
         const val = checks[itemName];
         if (val === 'finish') finished.push(itemName);
@@ -414,18 +397,27 @@
       return;
     }
 
+    // クリップボードAPIが使える場合
     if (navigator.clipboard) {
         navigator.clipboard.writeText(resultText).then(() => {
-            alert("コピーしました！\n" + resultText);
+            // 確認ダイアログ
+            if(confirm("コピーしました！\n\nコドモン（ブラウザ版）を起動しますか？")) {
+                window.open('https://parents.codmon.com/contact', '_blank');
+            }
         });
     } else {
+        // フォールバック処理
         const ta = document.createElement('textarea');
         ta.value = resultText;
         document.body.appendChild(ta);
         ta.select();
         document.execCommand('copy');
         document.body.removeChild(ta);
-        alert("コピーしました！\n" + resultText);
+        
+        // 確認ダイアログ
+        if(confirm("コピーしました！\n\nコドモン（ブラウザ版）を起動しますか？")) {
+            window.open('https://parents.codmon.com/contact', '_blank');
+        }
     }
   }
 </script>
