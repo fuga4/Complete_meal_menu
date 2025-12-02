@@ -20,10 +20,11 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
     background-color: var(--bg); margin: 0; padding: 0; color: #333;
-    padding-bottom: 220px; /* フッターとスコア表示分、余白を確保 */
+    padding-bottom: 220px; 
     transition: background 0.3s;
   }
 
+  /* ユーザー切り替え */
   .user-switcher {
     display: flex; gap: 10px; padding: 10px 15px; background: #fff;
     justify-content: center; border-bottom: 1px solid #eee;
@@ -36,6 +37,7 @@
   body[data-user="boy"] .user-btn[data-target="boy"] { background: #007AFF; color: white; border-color: #0056b3; }
   body[data-user="girl"] .user-btn[data-target="girl"] { background: #FF2D55; color: white; border-color: #d6002a; }
 
+  /* ヘッダー類 */
   .sub-header {
     background: #fff; position: sticky; top: 0; z-index: 100;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
@@ -63,6 +65,7 @@
     border-bottom-color: var(--theme-color); color: var(--theme-color); background: var(--theme-light);
   }
 
+  /* リスト */
   .container { padding: 15px; }
   .category-title {
     font-size: 0.9rem; color: #666; margin: 20px 0 8px 5px; font-weight: bold;
@@ -103,18 +106,28 @@
     font-size: 1rem; box-sizing: border-box; -webkit-appearance: none;
   }
 
-  /* グラフエリア（大きくしました） */
+  /* グラフエリア */
   .chart-container {
     margin: 10px 15px 15px 15px; background: white; border-radius: 12px;
-    padding: 10px 5px; /* パディングを減らす */
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    height: 350px; /* ★変更：高さを増やしてグラフを大きく */
-    position: relative;
+    padding: 10px 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    height: 350px; position: relative;
     display: flex; flex-direction: column; align-items: center;
+    cursor: pointer; /* タップできる感を出す */
   }
-  .chart-title { text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 0px; font-weight: bold; width:100%; }
+  .chart-container:active { background-color: #fafafa; } /* タップ時のフィードバック */
 
-  /* スコア表示エリア */
+  .chart-title { 
+    text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 0px; 
+    font-weight: bold; width:100%; display: flex; justify-content: center; align-items: center; gap:5px;
+  }
+  /* ヘルプアイコン風装飾 */
+  .chart-title::after {
+    content: '?'; display: inline-block; width: 18px; height: 18px; 
+    background: #ccc; color: white; border-radius: 50%; 
+    font-size: 12px; line-height: 18px; text-align: center;
+  }
+
+  /* スコアエリア */
   .score-area {
     margin: 0 15px 30px 15px; background: white; border-radius: 12px;
     padding: 15px; text-align: center;
@@ -125,6 +138,7 @@
   .score-value { font-size: 2.2rem; font-weight: 800; color: var(--theme-color); line-height: 1.2; }
   .score-comment { font-size: 1rem; color: #333; margin-top: 5px; font-weight: bold; }
 
+  /* フッター */
   .fixed-footer {
     position: fixed; bottom: 0; left: 0; width: 100%;
     background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
@@ -137,10 +151,12 @@
     background-color: var(--theme-color); color: white; transition: background 0.3s;
   }
 
+  /* モーダル共通 */
   .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.5); z-index: 999; display: none;
     align-items: center; justify-content: center;
+    animation: fadeIn 0.2s ease;
   }
   .modal-content {
     background: white; width: 85%; max-width: 320px; border-radius: 16px;
@@ -154,6 +170,14 @@
   .btn-reset-one { background: #f0f0f0; color: #333; }
   .btn-reset-all { background: #ffe0e0; color: #FF3B30; }
   .btn-cancel { background: white; color: #007AFF; margin-top: 5px; }
+
+  /* 栄養説明モーダル用スタイル */
+  .nutrition-list { text-align: left; font-size: 0.9rem; line-height: 1.5; }
+  .nutrition-item { margin-bottom: 15px; }
+  .nut-label { font-weight: bold; display: block; margin-bottom: 2px; }
+  .nut-desc { color: #666; font-size: 0.85rem; }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 </style>
 </head>
@@ -190,7 +214,7 @@
   </div>
 </div>
 
-<div class="chart-container">
+<div class="chart-container" onclick="showNutritionHelp()">
   <div class="chart-title">栄養バランス（完食分）</div>
   <div style="flex:1; width:100%; position:relative;">
     <canvas id="nutritionChart"></canvas>
@@ -214,6 +238,29 @@
       <button class="modal-btn btn-reset-one" onclick="resetCurrent()">表示中の食事のみリセット</button>
       <button class="modal-btn btn-reset-all" onclick="resetAll()">全データをリセット<br><span style="font-size:0.8rem">(全員・全食)</span></button>
       <button class="modal-btn btn-cancel" onclick="closeModal()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div id="nutrition-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-title">栄養素のヒミツ</div>
+    <div class="nutrition-list">
+      <div class="nutrition-item">
+        <span class="nut-label" style="color:#F5A623">💛 黄（エネルギー）</span>
+        <span class="nut-desc">炭水化物、油、砂糖<br>（パン、ご飯、ポテト、甘栗など）</span>
+      </div>
+      <div class="nutrition-item">
+        <span class="nut-label" style="color:#FF3B30">❤️ 赤（からだを作る）</span>
+        <span class="nut-desc">タンパク質、カルシウム<br>（肉、魚、卵、牛乳、豆、チーズ）</span>
+      </div>
+      <div class="nutrition-item">
+        <span class="nut-label" style="color:#34C759">💚 緑（調子を整える）</span>
+        <span class="nut-desc">ビタミン、ミネラル、食物繊維<br>（野菜、果物）</span>
+      </div>
+    </div>
+    <div class="modal-btn-group">
+      <button class="modal-btn btn-cancel" onclick="closeNutritionModal()">閉じる</button>
     </div>
   </div>
 </div>
@@ -269,7 +316,7 @@
         currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
       }
       renderPage(); 
-      updateChartAndScore(); // チャートとスコア更新
+      updateChartAndScore(); 
     });
   }
 
@@ -367,7 +414,6 @@
     if (document.activeElement !== olInput) olInput.value = savedData.otherLeft || '';
   }
 
-  // --- グラフ・スコア関連処理 ---
   function initChart() {
     const ctx = document.getElementById('nutritionChart').getContext('2d');
     
@@ -389,27 +435,20 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: {
-            padding: 5 // ★余白を減らす
-        },
+        layout: { padding: 5 },
         scales: {
           r: {
             angleLines: { display: true },
             suggestedMin: 0,
-            suggestedMax: 8, // ★最大値を10から8に減らして、グラフを広げる
+            suggestedMax: 8,
             pointLabels: {
-              font: { size: 14, weight: 'bold' }, // 文字サイズ調整
+              font: { size: 14, weight: 'bold' },
               color: '#555'
             },
-            ticks: {
-                display: false, // 目盛り数字を消してスッキリさせる
-                stepSize: 2
-            }
+            ticks: { display: false, stepSize: 2 }
           }
         },
-        plugins: {
-          legend: { display: false }
-        }
+        plugins: { legend: { display: false } }
       }
     });
   }
@@ -431,7 +470,6 @@
       }
     });
 
-    // チャート更新
     myChart.data.datasets[0].data = [totalY, totalR, totalG];
     
     const color = currentUser === 'boy' ? '0, 122, 255' : '255, 45, 85';
@@ -439,15 +477,12 @@
     myChart.data.datasets[0].borderColor = `rgba(${color}, 1)`;
     myChart.update();
 
-    // スコア計算・表示
     const totalScore = totalY + totalR + totalG;
     const scoreTextEl = document.getElementById('score-text');
     const commentEl = document.getElementById('score-comment');
     
-    // カウントアップアニメーション風
     scoreTextEl.innerHTML = `${totalScore} <span style="font-size:1rem;">pt</span>`;
 
-    // コメント分岐
     let comment = "";
     if (totalScore === 0) {
         comment = "何を食べるかな？";
@@ -463,7 +498,6 @@
     commentEl.textContent = comment;
   }
 
-  // --- 以下、既存関数 ---
   function switchUser(user) {
     currentUser = user;
     localStorage.setItem('fc_last_user', user);
@@ -498,11 +532,20 @@
     window.set(window.ref(window.db, dataPath), data);
   }
 
+  // --- モーダル制御 ---
   function showResetModal() {
     document.getElementById('reset-modal').style.display = 'flex';
   }
   function closeModal() {
     document.getElementById('reset-modal').style.display = 'none';
+  }
+
+  // ★追加：栄養説明モーダル制御
+  function showNutritionHelp() {
+    document.getElementById('nutrition-modal').style.display = 'flex';
+  }
+  function closeNutritionModal() {
+    document.getElementById('nutrition-modal').style.display = 'none';
   }
 
   function resetCurrent() {
