@@ -24,7 +24,6 @@
     transition: background 0.3s;
   }
 
-  /* ユーザー切り替え */
   .user-switcher {
     display: flex; gap: 10px; padding: 10px 15px; background: #fff;
     justify-content: center; border-bottom: 1px solid #eee;
@@ -37,7 +36,6 @@
   body[data-user="boy"] .user-btn[data-target="boy"] { background: #007AFF; color: white; border-color: #0056b3; }
   body[data-user="girl"] .user-btn[data-target="girl"] { background: #FF2D55; color: white; border-color: #d6002a; }
 
-  /* 天気エリア */
   .weather-bar {
     background: linear-gradient(to right, #e0f7fa, #e1bee7);
     padding: 8px 15px; font-size: 0.85rem; color: #555;
@@ -325,7 +323,7 @@
     });
   }
 
-  // ★修正：気温計算ロジック（temps配列からMin/Maxを自力で探す）
+  // ★修正：天気・気温・降水確率の完全探索ロジック
   async function getWeather() {
     try {
       const url = `https://www.jma.go.jp/bosai/forecast/data/forecast/${AREA_CODE}.json`;
@@ -344,13 +342,11 @@
       const targetDateStr = `${y}-${m}-${d}`;
       const targetLabel = isPm ? "明日" : "今日";
 
-      const ts0 = data[0].timeSeries[0]; // 天気
-      const ts2 = data[0].timeSeries[2]; // 降水確率 (index 2にあることが多い)
-      
-      // 気温データの探索
-      // JMAデータでは、気温は「temps」という配列で入ってくることが多い
-      // timeSeries配列の中から「temps」プロパティを持っているものを探す
-      const tsTemps = data[0].timeSeries.find(ts => ts.areas[0].temps);
+      // データを探索 (順番が変わっても大丈夫なようにプロパティで探す)
+      const tsWeather = data[0].timeSeries.find(ts => ts.areas[0].weatherCodes);
+      // tempsがあるものを探す（tempsMin/Maxの場合とtemps配列の場合がある）
+      const tsTemps = data[0].timeSeries.find(ts => ts.areas[0].temps || ts.areas[0].tempsMax);
+      const tsPops = data[0].timeSeries.find(ts => ts.areas[0].pops);
 
       let weatherText = "--";
       let weatherIcon = "";
@@ -359,77 +355,78 @@
       let maxPop = "--";
 
       // 1. 天気
-      if (ts0 && ts0.timeDefines) {
-          const idx = ts0.timeDefines.findIndex(td => td.startsWith(targetDateStr));
-          if (idx !== -1 && ts0.areas[0].weatherCodes[idx]) {
-              const code = ts0.areas[0].weatherCodes[idx];
+      if (tsWeather) {
+          // 日付マッチ
+          const idx = tsWeather.timeDefines.findIndex(td => td.startsWith(targetDateStr));
+          if (idx !== -1 && tsWeather.areas[0].weatherCodes[idx]) {
+              const code = tsWeather.areas[0].weatherCodes[idx];
               weatherText = getSimpleWeather(code);
               weatherIcon = getWeatherIcon(code);
           } else {
-              const fbIdx = isPm ? (ts0.areas[0].weatherCodes.length - 1) : 0;
-              const code = ts0.areas[0].weatherCodes[fbIdx];
+              // フォールバック（PMなら最後、AMなら最初）
+              const fbIdx = isPm ? (tsWeather.areas[0].weatherCodes.length - 1) : 0;
+              const code = tsWeather.areas[0].weatherCodes[fbIdx];
               weatherText = getSimpleWeather(code);
               weatherIcon = getWeatherIcon(code);
           }
       }
 
-      // 2. 気温（temps配列から抽出）
-      if (tsTemps && tsTemps.timeDefines && tsTemps.areas[0].temps) {
+      // 2. 気温
+      if (tsTemps) {
+          const area = tsTemps.areas[0];
+          // 日付マッチ
           const indices = [];
           tsTemps.timeDefines.forEach((td, i) => {
               if (td.startsWith(targetDateStr)) indices.push(i);
           });
 
-          // 日付一致する気温データを集める
-          let tempValues = [];
-          if (indices.length > 0) {
-              tempValues = indices.map(i => parseFloat(tsTemps.areas[0].temps[i])).filter(n => !isNaN(n));
-          } else {
-              // 日付が見つからない場合、AMなら前半、PMなら後半
-              const allTemps = tsTemps.areas[0].temps;
-              const half = Math.ceil(allTemps.length / 2);
-              const slice = isPm ? allTemps.slice(-half) : allTemps.slice(0, half);
-              tempValues = slice.map(v => parseFloat(v)).filter(n => !isNaN(n));
-          }
-
-          if (tempValues.length > 0) {
-              // 集めた気温の中から最大・最小を探す
-              maxTemp = Math.max(...tempValues);
-              minTemp = Math.min(...tempValues);
-              // もし1つしかデータがない場合は、それがMinかMaxか不明だがとりあえず両方に入れるか、
-              // あるいはAPIの仕様上、1つしかない場合はそれを表示する
-              if (tempValues.length === 1) {
-                  // 1つしかない場合（深夜など）、それを暫定表示
+          // A. Min/Max形式の場合
+          if (area.tempsMax) {
+              if(indices.length > 0) {
+                  // 日付が合う箇所のMin/Maxを取る
+                  const i = indices[0];
+                  if(area.tempsMax[i] && area.tempsMax[i] !== "") maxTemp = area.tempsMax[i];
+                  if(area.tempsMin && area.tempsMin[i] && area.tempsMin[i] !== "") minTemp = area.tempsMin[i];
+              } else {
+                  // 日付がないなら、PMなら配列の最後、AMなら最初
+                  const validMax = area.tempsMax.filter(v => v !== "" && v !== null);
+                  const validMin = area.tempsMin.filter(v => v !== "" && v !== null);
+                  if(validMax.length > 0) maxTemp = isPm ? validMax[validMax.length-1] : validMax[0];
+                  if(validMin.length > 0) minTemp = isPm ? validMin[validMin.length-1] : validMin[0];
               }
           }
-          
-          // tempsMin/Maxがある場合のフォールバック（念のため）
-          // 別のTimeSeriesにMin/Max専用データがある場合もあるので探す
-          const tsMinMax = data[0].timeSeries.find(ts => ts.areas[0].tempsMax);
-          if (tsMinMax) {
-             // ここから取れれば上書きする（より正確な予報値のため）
-             const mmIdx = tsMinMax.timeDefines.findIndex(td => td.startsWith(targetDateStr));
-             if(mmIdx !== -1) {
-                 const min = tsMinMax.areas[0].tempsMin[mmIdx];
-                 const max = tsMinMax.areas[0].tempsMax[mmIdx];
-                 if(min && min !== "") minTemp = min;
-                 if(max && max !== "") maxTemp = max;
-             }
+          // B. temps配列形式の場合（3時間毎の気温など）
+          else if (area.temps) {
+              let targetTemps = [];
+              if (indices.length > 0) {
+                  targetTemps = indices.map(i => parseFloat(area.temps[i])).filter(n => !isNaN(n));
+              } else {
+                  // 日付がないなら前半/後半で分割
+                  const allTemps = area.temps;
+                  const half = Math.ceil(allTemps.length / 2);
+                  const slice = isPm ? allTemps.slice(-half) : allTemps.slice(0, half);
+                  targetTemps = slice.map(v => parseFloat(v)).filter(n => !isNaN(n));
+              }
+              
+              if(targetTemps.length > 0) {
+                  maxTemp = Math.max(...targetTemps);
+                  minTemp = Math.min(...targetTemps);
+              }
           }
       }
 
       // 3. 降水確率
-      if (ts2 && ts2.timeDefines && ts2.areas[0].pops) {
+      if (tsPops) {
           const indices = [];
-          ts2.timeDefines.forEach((td, i) => {
+          tsPops.timeDefines.forEach((td, i) => {
               if (td.startsWith(targetDateStr)) indices.push(i);
           });
           
           let pops = [];
           if (indices.length > 0) {
-              pops = indices.map(i => parseInt(ts2.areas[0].pops[i])).filter(n => !isNaN(n));
+              pops = indices.map(i => parseInt(tsPops.areas[0].pops[i])).filter(n => !isNaN(n));
           } else {
-              const allPops = ts2.areas[0].pops;
+              const allPops = tsPops.areas[0].pops;
               const half = Math.ceil(allPops.length / 2);
               const slice = isPm ? allPops.slice(-half) : allPops.slice(0, half);
               pops = slice.map(p => parseInt(p)).filter(n => !isNaN(n));
