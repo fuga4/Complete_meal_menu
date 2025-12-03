@@ -297,8 +297,7 @@
 
 <script>
   const CATEGORY_MAP = { 1: "主食", 2: "主菜", 3: "副菜", 4: "汁物", 5: "デザート" };
-  // Open-Meteoを使うため、地域コードは不要になりました
-
+  
   let currentUser = 'boy';   
   let currentMeal = 'morning'; 
   let menuData = { morning: {}, dinner: {} }; 
@@ -321,16 +320,13 @@
     loadMenuCsv().then(() => {
       initChart();
       setupRealtimeListener(); 
-      getWeather(); // ★Open-Meteo版
+      getWeather(); 
     });
   }
 
-  // ★修正：Open-Meteo APIを使った安定版天気取得
+  // 天気取得 (Open-Meteo)
   async function getWeather() {
     try {
-      // 杉並区付近の座標 (Lat:35.6995, Lon:139.6355)
-      // dailyパラメータで最高・最低気温、降水確率、天気コードを取得
-      // timezone=Asia/Tokyo で日本時間に合わせる
       const url = "https://api.open-meteo.com/v1/forecast?latitude=35.6995&longitude=139.6355&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo";
       
       const res = await fetch(url);
@@ -341,25 +337,19 @@
       const currentHour = new Date().getHours();
       const isPm = currentHour >= 12;
       
-      // index: 0=今日, 1=明日
       const targetIndex = isPm ? 1 : 0;
       const targetLabel = isPm ? "明日" : "今日";
 
       const daily = data.daily;
       
-      // 天気コード
       const code = daily.weathercode[targetIndex];
       const weatherText = getWmoWeatherText(code);
       const weatherIcon = getWmoWeatherIcon(code);
 
-      // 気温
       const maxTemp = daily.temperature_2m_max[targetIndex];
       const minTemp = daily.temperature_2m_min[targetIndex];
-
-      // 降水確率
       const pop = daily.precipitation_probability_max[targetIndex];
 
-      // UI反映
       document.getElementById('weather-date-label').textContent = targetLabel + "：";
       document.getElementById('weather-icon').textContent = weatherIcon;
       document.getElementById('weather-text').textContent = weatherText;
@@ -374,7 +364,6 @@
     }
   }
 
-  // WMO天気コード変換 (Open-Meteo用)
   function getWmoWeatherIcon(code) {
     if (code === 0) return "☀️";
     if ([1, 2, 3].includes(code)) return "⛅️";
@@ -387,7 +376,7 @@
   
   function getWmoWeatherText(code) {
     if (code === 0) return "晴天";
-    if ([1, 2, 3].includes(code)) return "くもり"; // 厳密には晴れ間あり
+    if ([1, 2, 3].includes(code)) return "くもり"; 
     if ([45, 48].includes(code)) return "霧";
     if ([51, 53, 55].includes(code)) return "霧雨";
     if ([61, 63, 65].includes(code)) return "雨";
@@ -465,13 +454,14 @@
     const savedData = currentFirebaseData;
     const checks = savedData.checks || {};
 
-    Object.keys(menuData[currentMeal]).forEach(cat => {
-      const items = menuData[currentMeal][cat];
-      if (items.length === 0) return;
+    // ★修正：定義順(menu.csvの順)で表示する
+    Object.values(CATEGORY_MAP).forEach(catName => {
+      const items = menuData[currentMeal][catName];
+      if (!items || items.length === 0) return;
 
       const title = document.createElement('div');
       title.className = 'category-title';
-      title.textContent = cat;
+      title.textContent = catName;
       container.appendChild(title);
 
       const card = document.createElement('div');
@@ -672,6 +662,7 @@
     });
   }
 
+  // ★修正：コピー順序を画面表示順に合わせる
   function generateAndCopy() {
     let finished = [];
     let leftovers = [];
@@ -679,10 +670,16 @@
     const savedData = currentFirebaseData;
     const checks = savedData.checks || {};
 
-    Object.keys(checks).forEach(itemName => {
-        const val = checks[itemName];
-        if (val === 'finish') finished.push(itemName);
-        if (val === 'left') leftovers.push(itemName);
+    // CATEGORY_MAPの順番で、menuDataの中身をイテレートする
+    Object.values(CATEGORY_MAP).forEach(catName => {
+        const items = menuData[currentMeal][catName];
+        if (items) {
+            items.forEach(itemName => {
+                const val = checks[itemName];
+                if (val === 'finish') finished.push(itemName);
+                if (val === 'left') leftovers.push(itemName);
+            });
+        }
     });
 
     const otherF = savedData.otherFinish;
