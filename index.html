@@ -454,13 +454,13 @@
     const savedData = currentFirebaseData;
     const checks = savedData.checks || {};
 
-    Object.keys(menuData[currentMeal]).forEach(cat => {
-      const items = menuData[currentMeal][cat];
-      if (items.length === 0) return;
+    Object.values(CATEGORY_MAP).forEach(catName => {
+      const items = menuData[currentMeal][catName];
+      if (!items || items.length === 0) return;
 
       const title = document.createElement('div');
       title.className = 'category-title';
-      title.textContent = cat;
+      title.textContent = catName;
       container.appendChild(title);
 
       const card = document.createElement('div');
@@ -661,7 +661,7 @@
     });
   }
 
-  // ★修正：ご指定のレイアウト（縦リスト）
+  // ★修正：ヘッダーなし・シンプル縦リスト版
   function generateAndCopy() {
     const ICON_FINISH = "⭕️";
     const ICON_LEFT   = "🔺"; 
@@ -671,11 +671,7 @@
     
     let resultLines = [];
     
-    const mealLabel = (currentMeal === 'morning') ? '【朝食】' : '【夕食】';
-    // 見出しをつける（日付＋食事名）
-    const now = new Date();
-    const dateStr = `${now.getMonth()+1}/${now.getDate()}`;
-    resultLines.push(`${dateStr} ${mealLabel}`);
+    // ヘッダー削除（日付や食事タイプは出力しない）
 
     // カテゴリ定義順に処理
     Object.keys(CATEGORY_MAP).forEach(key => {
@@ -700,7 +696,7 @@
     if(otherF) resultLines.push(`【その他】${ICON_FINISH}${otherF}`);
     if(otherL) resultLines.push(`【その他】${ICON_LEFT}${otherL}`);
 
-    if(resultLines.length <= 1) { // 見出ししか入っていない場合
+    if(resultLines.length === 0) { // リストが空の場合
        alert("選択された項目がありません");
        return;
     }
