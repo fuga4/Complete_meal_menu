@@ -454,14 +454,13 @@
     const savedData = currentFirebaseData;
     const checks = savedData.checks || {};
 
-    // ★修正：定義順(menu.csvの順)で表示する
-    Object.values(CATEGORY_MAP).forEach(catName => {
-      const items = menuData[currentMeal][catName];
-      if (!items || items.length === 0) return;
+    Object.keys(menuData[currentMeal]).forEach(cat => {
+      const items = menuData[currentMeal][cat];
+      if (items.length === 0) return;
 
       const title = document.createElement('div');
       title.className = 'category-title';
-      title.textContent = catName;
+      title.textContent = cat;
       container.appendChild(title);
 
       const card = document.createElement('div');
@@ -662,39 +661,51 @@
     });
   }
 
-  // ★修正：コピー順序を画面表示順に合わせる
+  // ★修正：ご指定のレイアウト（縦リスト）
   function generateAndCopy() {
-    let finished = [];
-    let leftovers = [];
-
+    const ICON_FINISH = "⭕️";
+    const ICON_LEFT   = "🔺"; 
+    
     const savedData = currentFirebaseData;
     const checks = savedData.checks || {};
+    
+    let resultLines = [];
+    
+    const mealLabel = (currentMeal === 'morning') ? '【朝食】' : '【夕食】';
+    // 見出しをつける（日付＋食事名）
+    const now = new Date();
+    const dateStr = `${now.getMonth()+1}/${now.getDate()}`;
+    resultLines.push(`${dateStr} ${mealLabel}`);
 
-    // CATEGORY_MAPの順番で、menuDataの中身をイテレートする
-    Object.values(CATEGORY_MAP).forEach(catName => {
+    // カテゴリ定義順に処理
+    Object.keys(CATEGORY_MAP).forEach(key => {
+        const catName = CATEGORY_MAP[key];
         const items = menuData[currentMeal][catName];
-        if (items) {
-            items.forEach(itemName => {
-                const val = checks[itemName];
-                if (val === 'finish') finished.push(itemName);
-                if (val === 'left') leftovers.push(itemName);
-            });
-        }
+        
+        if (!items) return;
+
+        items.forEach(itemName => {
+            const val = checks[itemName];
+            if (val === 'finish') {
+                resultLines.push(`【${catName}】${ICON_FINISH}${itemName}`);
+            } else if (val === 'left') {
+                resultLines.push(`【${catName}】${ICON_LEFT}${itemName}`);
+            }
+        });
     });
 
+    // その他入力
     const otherF = savedData.otherFinish;
     const otherL = savedData.otherLeft;
-    if(otherF) finished.push(otherF);
-    if(otherL) leftovers.push(otherL);
+    if(otherF) resultLines.push(`【その他】${ICON_FINISH}${otherF}`);
+    if(otherL) resultLines.push(`【その他】${ICON_LEFT}${otherL}`);
 
-    let resultText = "";
-    if(finished.length > 0) resultText += `（完食）${finished.join("、")}\n`;
-    if(leftovers.length > 0) resultText += `（残し）${leftovers.join("、")}`;
-
-    if(!resultText) {
-      alert("選択された項目がありません");
-      return;
+    if(resultLines.length <= 1) { // 見出ししか入っていない場合
+       alert("選択された項目がありません");
+       return;
     }
+
+    let resultText = resultLines.join("\n");
 
     if (navigator.clipboard) {
         navigator.clipboard.writeText(resultText).then(() => {
