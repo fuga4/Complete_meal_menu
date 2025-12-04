@@ -281,18 +281,31 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+  // ★追加：Authentication機能の読み込み
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
   import { firebaseConfig } from "./config.js";
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+  
+  // ★追加：認証の初期化と実行
+  const auth = getAuth(app);
+  signInAnonymously(auth).then(() => {
+      console.log("Logged in anonymously");
+      // ログイン成功後にアプリを開始
+      initApp();
+  }).catch((error) => {
+      console.error("Login failed", error);
+      alert("通信エラー：ログインできませんでした");
+  });
 
   window.db = db;
   window.set = set;
   window.ref = ref;
   window.onValue = onValue;
   window.get = get;
-
-  initApp();
+  
+  // initApp()はログイン完了後に呼び出すため、ここでは実行しない
 </script>
 
 <script>
@@ -324,11 +337,9 @@
     });
   }
 
-  // 天気取得 (Open-Meteo)
   async function getWeather() {
     try {
       const url = "https://api.open-meteo.com/v1/forecast?latitude=35.6995&longitude=139.6355&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo";
-      
       const res = await fetch(url);
       const data = await res.json();
 
@@ -661,7 +672,6 @@
     });
   }
 
-  // ★修正：ヘッダーなし・シンプル縦リスト版
   function generateAndCopy() {
     const ICON_FINISH = "⭕️";
     const ICON_LEFT   = "🔺"; 
@@ -671,9 +681,6 @@
     
     let resultLines = [];
     
-    // ヘッダー削除（日付や食事タイプは出力しない）
-
-    // カテゴリ定義順に処理
     Object.keys(CATEGORY_MAP).forEach(key => {
         const catName = CATEGORY_MAP[key];
         const items = menuData[currentMeal][catName];
@@ -690,13 +697,12 @@
         });
     });
 
-    // その他入力
     const otherF = savedData.otherFinish;
     const otherL = savedData.otherLeft;
     if(otherF) resultLines.push(`【その他】${ICON_FINISH}${otherF}`);
     if(otherL) resultLines.push(`【その他】${ICON_LEFT}${otherL}`);
 
-    if(resultLines.length === 0) { // リストが空の場合
+    if(resultLines.length === 0) {
        alert("選択された項目がありません");
        return;
     }
