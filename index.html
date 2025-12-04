@@ -292,11 +292,11 @@
   const auth = getAuth(app);
   signInAnonymously(auth).then(() => {
       console.log("Logged in anonymously");
-      // ログイン成功後にアプリを開始
       initApp();
   }).catch((error) => {
       console.error("Login failed", error);
-      alert("通信エラー：ログインできませんでした");
+      // ★修正：本当のエラー内容を表示する
+      alert(`エラーが発生しました\nCode: ${error.code}\nMessage: ${error.message}`);
   });
 
   window.db = db;
