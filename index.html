@@ -21,15 +21,8 @@
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
     background-color: var(--bg); margin: 0; padding: 0; color: #333;
     padding-bottom: 220px; 
-    /* 背景色の変化を滑らかにする */
-    transition: background-color 2.0s ease-out;
+    transition: background 0.3s;
   }
-
-  /* ★追加：天気演出用の背景色クラス */
-  body.weather-effect-sunny  { background-color: #fff9c4 !important; } /* 晴れ：薄い黄色 */
-  body.weather-effect-cloudy { background-color: #cfd8dc !important; } /* 曇り：グレー */
-  body.weather-effect-rainy  { background-color: #bbdefb !important; } /* 雨：薄い青 */
-  body.weather-effect-snowy  { background-color: #e1bee7 !important; } /* 雪：薄い紫 */
 
   /* ユーザー切り替え */
   .user-switcher {
@@ -188,9 +181,58 @@
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+  /* ★追加：天気アニメーション用のスタイル */
+  #weather-animation-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; z-index: 9999;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden; opacity: 0; transition: opacity 0.5s;
+  }
+  #weather-animation-icon {
+      font-size: 150px; /* アイコンサイズ */
+      opacity: 0;
+  }
+
+  /* 晴れ：回転しながら出現 */
+  .animate-sunny #weather-animation-icon {
+      animation: sunnyAnim 3s ease-out forwards;
+  }
+  @keyframes sunnyAnim {
+      0% { opacity: 0; transform: scale(0.5) rotate(-180deg); }
+      20% { opacity: 0.8; transform: scale(1.2) rotate(0deg); }
+      80% { opacity: 0.8; transform: scale(1) rotate(360deg); }
+      100% { opacity: 0; transform: scale(1.5) rotate(360deg); }
+  }
+
+  /* 曇り：横に流れる */
+  .animate-cloudy #weather-animation-icon {
+      animation: cloudyAnim 3.5s linear forwards;
+  }
+  @keyframes cloudyAnim {
+      0% { opacity: 0; transform: translateX(-150px); }
+      10% { opacity: 0.8; }
+      90% { opacity: 0.8; }
+      100% { opacity: 0; transform: translateX(150px); }
+  }
+
+  /* 雨・雪：上から降る */
+  .animate-rainy #weather-animation-icon {
+      animation: rainyAnim 2.5s ease-in forwards;
+  }
+  @keyframes rainyAnim {
+      0% { opacity: 0; transform: translateY(-200px); }
+      20% { opacity: 0.9; transform: translateY(0); }
+      80% { opacity: 0.9; transform: translateY(20px); }
+      100% { opacity: 0; transform: translateY(150px); }
+  }
+
 </style>
 </head>
 <body data-user="boy">
+
+<div id="weather-animation-overlay">
+    <span id="weather-animation-icon"></span>
+</div>
 
 <div id="weather-bar" class="weather-bar" style="display:none;">
   <span id="weather-date-label"></span>
@@ -372,36 +414,45 @@
       
       document.getElementById('weather-bar').style.display = 'flex';
 
-      // ★追加：天気による背景演出
-      applyWeatherEffect(code);
+      // ★変更：天気によるアイコンアニメーション演出
+      applyWeatherEffect(code, weatherIcon);
 
     } catch (e) {
       console.log("Weather error: ", e);
     }
   }
 
-  // ★追加：演出関数
-  function applyWeatherEffect(code) {
-      const body = document.body;
+  // ★変更：アイコンアニメーション演出関数
+  function applyWeatherEffect(code, iconStr) {
+      const overlay = document.getElementById('weather-animation-overlay');
+      const icon = document.getElementById('weather-animation-icon');
       
-      // クラスを一旦リセット
-      body.classList.remove('weather-effect-sunny', 'weather-effect-cloudy', 'weather-effect-rainy', 'weather-effect-snowy');
+      // クラスとテキストをリセット
+      overlay.className = '';
+      icon.textContent = iconStr; // 取得した天気アイコン（絵文字）をセット
 
-      // コードに基づいてクラス付与
+      let animClass = '';
       if (code === 0 || code === 1) { // 晴れ
-          body.classList.add('weather-effect-sunny');
+          animClass = 'animate-sunny';
       } else if (code <= 3 || code === 45 || code === 48) { // 曇り・霧
-          body.classList.add('weather-effect-cloudy');
-      } else if ([71, 73, 75, 77, 85, 86].includes(code)) { // 雪
-          body.classList.add('weather-effect-snowy');
-      } else { // 雨・その他
-          body.classList.add('weather-effect-rainy');
+          animClass = 'animate-cloudy';
+      } else { // 雨・雪・その他
+          animClass = 'animate-rainy';
       }
 
-      // 3秒後にクラスを削除して元に戻す
+      // アニメーション開始
+      overlay.style.opacity = 1;
+      overlay.classList.add(animClass);
+
+      // 終了後に非表示化
       setTimeout(() => {
-          body.classList.remove('weather-effect-sunny', 'weather-effect-cloudy', 'weather-effect-rainy', 'weather-effect-snowy');
-      }, 3000);
+          overlay.style.opacity = 0;
+          // フェードアウト後にクラスを削除
+          setTimeout(() => {
+             overlay.classList.remove(animClass);
+             icon.textContent = '';
+          }, 500);
+      }, 3500); // アニメーション時間に合わせて調整
   }
 
   function getWmoWeatherIcon(code) {
