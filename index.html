@@ -19,47 +19,56 @@
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-    /* デフォルト背景 */
     background-color: var(--bg); 
     margin: 0; padding: 0; color: #333;
     padding-bottom: 220px; 
-    transition: background-color 0.8s ease; /* 色の変化をふんわりさせる */
+    transition: background-color 0.8s ease;
+    position: relative; /* アニメーションコンテナの基準点 */
+    min-height: 100vh;
   }
 
-  /* ★追加：天気ごとの背景パターン（ドット柄） */
-  
-  /* 晴れ：薄いクリーム色 + オレンジドット */
-  body.weather-sunny {
-      background-color: #fffde7 !important;
-      background-image: radial-gradient(#ffe082 1.5px, transparent 1.5px);
-      background-size: 24px 24px; /* ドットの間隔 */
+  /* ★変更：天気ごとの背景色（静的） */
+  body.weather-sunny { background-color: #e3f2fd !important; } /* 晴れ：青空 */
+  body.weather-cloudy { background-color: #cfd8dc !important; } /* 曇り：グレー */
+  /* 雨・雪はアニメーションで表現するため、背景色はデフォルトのまま */
+
+  /* ★追加：天気アニメーション用のコンテナ */
+  #weather-animation-container {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none; /* 操作を邪魔しない */
+      z-index: -1; /* コンテンツの後ろに表示 */
+      overflow: hidden;
   }
 
-  /* 曇り：薄いグレー + グレードット */
-  body.weather-cloudy {
-      background-color: #f5f5f5 !important;
-      background-image: radial-gradient(#bdbdbd 1.5px, transparent 1.5px);
-      background-size: 24px 24px;
+  /* ★追加：雨粒のスタイル */
+  .rain-drop {
+      position: absolute;
+      width: 2px; height: 15px;
+      background: rgba(0, 122, 255, 0.6); /* 青い雨 */
+      bottom: 100%; /* 画面上からスタート */
+      animation: fall linear infinite;
   }
 
-  /* 雨：薄い水色 + 青ドット */
-  body.weather-rainy {
-      background-color: #e3f2fd !important;
-      background-image: radial-gradient(#64b5f6 1.5px, transparent 1.5px);
-      background-size: 24px 24px;
+  /* ★追加：雪のスタイル */
+  .snow-flake {
+      position: absolute;
+      width: 8px; height: 8px;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 0 5px rgba(255,255,255,0.8);
+      bottom: 100%;
+      animation: fall linear infinite;
   }
 
-  /* 雪：薄いラベンダー + 白紫ドット */
-  body.weather-snowy {
-      background-color: #f3e5f5 !important;
-      background-image: radial-gradient(#ce93d8 1.5px, transparent 1.5px);
-      background-size: 24px 24px;
+  /* 落下アニメーション */
+  @keyframes fall {
+      to { transform: translateY(110vh); } /* 画面下まで落ちる */
   }
 
   /* ユーザー切り替え */
   .user-switcher {
     display: flex; gap: 10px; padding: 10px 15px; 
-    background: rgba(255, 255, 255, 0.8); /* 背景透過させて柄を見せる */
+    background: rgba(255, 255, 255, 0.8); 
     backdrop-filter: blur(5px);
     justify-content: center; border-bottom: 1px solid #eee;
   }
@@ -73,7 +82,6 @@
 
   /* 天気エリア */
   .weather-bar {
-    /* グラデーションをやめてシンプルに見やすく */
     background: rgba(255, 255, 255, 0.9);
     padding: 8px 15px; font-size: 0.85rem; color: #555;
     display: flex; justify-content: center; align-items: center; gap: 10px;
@@ -221,6 +229,8 @@
 </head>
 <body data-user="boy">
 
+<div id="weather-animation-container"></div>
+
 <div id="weather-bar" class="weather-bar" style="display:none;">
   <span id="weather-date-label"></span>
   <span id="weather-icon" class="weather-icon"></span>
@@ -348,6 +358,7 @@
   let nutritionMap = {}; 
   let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
   let myChart = null;
+  let weatherAnimInterval = null; // アニメーション用タイマー
 
   function initApp() {
     const lastUser = localStorage.getItem('fc_last_user');
@@ -401,7 +412,7 @@
       
       document.getElementById('weather-bar').style.display = 'flex';
 
-      // ★変更：背景の柄を変える
+      // ★変更：背景・アニメーション適用
       applyWeatherEffect(code);
 
     } catch (e) {
@@ -409,23 +420,62 @@
     }
   }
 
-  // ★変更：背景クラス切り替え関数
+  // ★変更：背景・アニメーション切り替え関数
   function applyWeatherEffect(code) {
       const body = document.body;
+      const container = document.getElementById('weather-animation-container');
       
-      // クラスをリセット
-      body.classList.remove('weather-sunny', 'weather-cloudy', 'weather-rainy', 'weather-snowy');
+      // リセット
+      body.classList.remove('weather-sunny', 'weather-cloudy');
+      clearWeatherAnimation();
 
-      // コードに基づいてクラス付与
+      // コードに基づいて適用
       if (code === 0 || code === 1) { // 晴れ
           body.classList.add('weather-sunny');
       } else if (code <= 3 || code === 45 || code === 48) { // 曇り・霧
           body.classList.add('weather-cloudy');
       } else if ([71, 73, 75, 77, 85, 86].includes(code)) { // 雪
-          body.classList.add('weather-snowy');
+          startSnowAnimation(container);
       } else { // 雨・その他
-          body.classList.add('weather-rainy');
+          startRainAnimation(container);
       }
+  }
+
+  // アニメーション停止・クリア
+  function clearWeatherAnimation() {
+      if (weatherAnimInterval) {
+          clearInterval(weatherAnimInterval);
+          weatherAnimInterval = null;
+      }
+      document.getElementById('weather-animation-container').innerHTML = '';
+  }
+
+  // 雨アニメーション開始
+  function startRainAnimation(container) {
+      weatherAnimInterval = setInterval(() => {
+          const drop = document.createElement('div');
+          drop.classList.add('rain-drop');
+          drop.style.left = Math.random() * 100 + 'vw';
+          drop.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's'; // 落下速度
+          container.appendChild(drop);
+          
+          // 画面外に出たら削除
+          setTimeout(() => { drop.remove(); }, 1000);
+      }, 50); // 発生頻度
+  }
+
+  // 雪アニメーション開始
+  function startSnowAnimation(container) {
+      weatherAnimInterval = setInterval(() => {
+          const flake = document.createElement('div');
+          flake.classList.add('snow-flake');
+          flake.style.left = Math.random() * 100 + 'vw';
+          flake.style.opacity = Math.random();
+          flake.style.animationDuration = (Math.random() * 3 + 2) + 's'; // ゆっくり落下
+          container.appendChild(flake);
+          
+          setTimeout(() => { flake.remove(); }, 5000);
+      }, 200); // 発生頻度
   }
 
   function getWmoWeatherIcon(code) {
