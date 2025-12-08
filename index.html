@@ -44,8 +44,58 @@
     display: flex; justify-content: center; align-items: center; gap: 10px;
     border-bottom: 1px solid #ddd; font-weight: bold;
     min-height: 24px;
+    /* ★追加：アニメーションの舞台として設定 */
+    position: relative;
+    overflow: hidden; 
   }
   .weather-icon { font-size: 1.2rem; margin-right: 2px; }
+
+  /* ★追加：バーの中を通過するアイコンのスタイル */
+  #weather-animation-icon {
+      position: absolute;
+      top: 50%;
+      left: -50px; /* 画面左外からスタート */
+      transform: translateY(-50%);
+      font-size: 2.2rem; /* バーと同じくらいのサイズ */
+      pointer-events: none;
+      opacity: 0;
+      z-index: 10;
+  }
+
+  /* 晴れ：回転しながら通過 */
+  .anim-pass-sunny {
+      animation: passSunny 4s linear forwards;
+  }
+  @keyframes passSunny {
+      0% { left: -50px; opacity: 0; transform: translateY(-50%) rotate(0deg); }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { left: 100%; opacity: 0; transform: translateY(-50%) rotate(360deg); }
+  }
+
+  /* 曇り：ふわふわ通過 */
+  .anim-pass-cloudy {
+      animation: passCloudy 5s linear forwards;
+  }
+  @keyframes passCloudy {
+      0% { left: -50px; opacity: 0; }
+      10% { opacity: 0.9; }
+      90% { opacity: 0.9; }
+      100% { left: 100%; opacity: 0; }
+  }
+
+  /* 雨・雪：少し揺れながら通過 */
+  .anim-pass-rainy {
+      animation: passRainy 4s linear forwards;
+  }
+  @keyframes passRainy {
+      0% { left: -50px; opacity: 0; transform: translateY(-50%); }
+      10% { opacity: 1; }
+      25% { transform: translateY(-40%); }
+      50% { transform: translateY(-60%); }
+      75% { transform: translateY(-40%); }
+      100% { left: 100%; opacity: 0; transform: translateY(-50%); }
+  }
 
   .sub-header {
     background: #fff; position: sticky; top: 0; z-index: 100;
@@ -181,58 +231,9 @@
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-  /* ★追加：天気アニメーション用のスタイル */
-  #weather-animation-overlay {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      pointer-events: none; z-index: 9999;
-      display: flex; align-items: center; justify-content: center;
-      overflow: hidden; opacity: 0; transition: opacity 0.5s;
-  }
-  #weather-animation-icon {
-      font-size: 150px; /* アイコンサイズ */
-      opacity: 0;
-  }
-
-  /* 晴れ：回転しながら出現 */
-  .animate-sunny #weather-animation-icon {
-      animation: sunnyAnim 3s ease-out forwards;
-  }
-  @keyframes sunnyAnim {
-      0% { opacity: 0; transform: scale(0.5) rotate(-180deg); }
-      20% { opacity: 0.8; transform: scale(1.2) rotate(0deg); }
-      80% { opacity: 0.8; transform: scale(1) rotate(360deg); }
-      100% { opacity: 0; transform: scale(1.5) rotate(360deg); }
-  }
-
-  /* 曇り：横に流れる */
-  .animate-cloudy #weather-animation-icon {
-      animation: cloudyAnim 3.5s linear forwards;
-  }
-  @keyframes cloudyAnim {
-      0% { opacity: 0; transform: translateX(-150px); }
-      10% { opacity: 0.8; }
-      90% { opacity: 0.8; }
-      100% { opacity: 0; transform: translateX(150px); }
-  }
-
-  /* 雨・雪：上から降る */
-  .animate-rainy #weather-animation-icon {
-      animation: rainyAnim 2.5s ease-in forwards;
-  }
-  @keyframes rainyAnim {
-      0% { opacity: 0; transform: translateY(-200px); }
-      20% { opacity: 0.9; transform: translateY(0); }
-      80% { opacity: 0.9; transform: translateY(20px); }
-      100% { opacity: 0; transform: translateY(150px); }
-  }
-
 </style>
 </head>
 <body data-user="boy">
-
-<div id="weather-animation-overlay">
-    <span id="weather-animation-icon"></span>
-</div>
 
 <div id="weather-bar" class="weather-bar" style="display:none;">
   <span id="weather-date-label"></span>
@@ -243,6 +244,7 @@
     <span style="color:#FF3B30;" id="temp-max">--</span>℃ / 
     <span style="color:#007AFF;" id="temp-min">--</span>℃
   </span>
+  <span id="weather-animation-icon"></span>
 </div>
 
 <div class="user-switcher">
@@ -414,7 +416,7 @@
       
       document.getElementById('weather-bar').style.display = 'flex';
 
-      // ★変更：天気によるアイコンアニメーション演出
+      // アニメーション実行 (アイコンとコードを渡す)
       applyWeatherEffect(code, weatherIcon);
 
     } catch (e) {
@@ -422,37 +424,27 @@
     }
   }
 
-  // ★変更：アイコンアニメーション演出関数
+  // ★修正：バー内を通過する演出
   function applyWeatherEffect(code, iconStr) {
-      const overlay = document.getElementById('weather-animation-overlay');
       const icon = document.getElementById('weather-animation-icon');
       
-      // クラスとテキストをリセット
-      overlay.className = '';
-      icon.textContent = iconStr; // 取得した天気アイコン（絵文字）をセット
+      // アイコン文字をセット
+      icon.textContent = iconStr;
+      
+      // アニメーションクラスをリセット
+      icon.className = '';
+      void icon.offsetWidth; // リフロー発生（アニメーション再点火用）
 
       let animClass = '';
-      if (code === 0 || code === 1) { // 晴れ
-          animClass = 'animate-sunny';
-      } else if (code <= 3 || code === 45 || code === 48) { // 曇り・霧
-          animClass = 'animate-cloudy';
-      } else { // 雨・雪・その他
-          animClass = 'animate-rainy';
+      if (code === 0 || code === 1) { 
+          animClass = 'anim-pass-sunny'; // 晴れ：回転
+      } else if (code <= 3 || code === 45 || code === 48) { 
+          animClass = 'anim-pass-cloudy'; // 曇り：ふわふわ
+      } else { 
+          animClass = 'anim-pass-rainy'; // 雨・雪：揺れ
       }
 
-      // アニメーション開始
-      overlay.style.opacity = 1;
-      overlay.classList.add(animClass);
-
-      // 終了後に非表示化
-      setTimeout(() => {
-          overlay.style.opacity = 0;
-          // フェードアウト後にクラスを削除
-          setTimeout(() => {
-             overlay.classList.remove(animClass);
-             icon.textContent = '';
-          }, 500);
-      }, 3500); // アニメーション時間に合わせて調整
+      icon.classList.add(animClass);
   }
 
   function getWmoWeatherIcon(code) {
