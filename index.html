@@ -21,8 +21,15 @@
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
     background-color: var(--bg); margin: 0; padding: 0; color: #333;
     padding-bottom: 220px; 
-    transition: background 0.3s;
+    /* 背景色の変化を滑らかにする */
+    transition: background-color 2.0s ease-out;
   }
+
+  /* ★追加：天気演出用の背景色クラス */
+  body.weather-effect-sunny  { background-color: #fff9c4 !important; } /* 晴れ：薄い黄色 */
+  body.weather-effect-cloudy { background-color: #cfd8dc !important; } /* 曇り：グレー */
+  body.weather-effect-rainy  { background-color: #bbdefb !important; } /* 雨：薄い青 */
+  body.weather-effect-snowy  { background-color: #e1bee7 !important; } /* 雪：薄い紫 */
 
   /* ユーザー切り替え */
   .user-switcher {
@@ -281,21 +288,18 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
-  // ★追加：Authentication機能の読み込み
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
   import { firebaseConfig } from "./config.js";
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   
-  // ★追加：認証の初期化と実行
   const auth = getAuth(app);
   signInAnonymously(auth).then(() => {
       console.log("Logged in anonymously");
       initApp();
   }).catch((error) => {
       console.error("Login failed", error);
-      // ★修正：本当のエラー内容を表示する
       alert(`エラーが発生しました\nCode: ${error.code}\nMessage: ${error.message}`);
   });
 
@@ -304,8 +308,6 @@
   window.ref = ref;
   window.onValue = onValue;
   window.get = get;
-  
-  // initApp()はログイン完了後に呼び出すため、ここでは実行しない
 </script>
 
 <script>
@@ -337,9 +339,11 @@
     });
   }
 
+  // 天気取得 & 演出
   async function getWeather() {
     try {
       const url = "https://api.open-meteo.com/v1/forecast?latitude=35.6995&longitude=139.6355&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo";
+      
       const res = await fetch(url);
       const data = await res.json();
 
@@ -352,11 +356,9 @@
       const targetLabel = isPm ? "明日" : "今日";
 
       const daily = data.daily;
-      
       const code = daily.weathercode[targetIndex];
       const weatherText = getWmoWeatherText(code);
       const weatherIcon = getWmoWeatherIcon(code);
-
       const maxTemp = daily.temperature_2m_max[targetIndex];
       const minTemp = daily.temperature_2m_min[targetIndex];
       const pop = daily.precipitation_probability_max[targetIndex];
@@ -370,9 +372,36 @@
       
       document.getElementById('weather-bar').style.display = 'flex';
 
+      // ★追加：天気による背景演出
+      applyWeatherEffect(code);
+
     } catch (e) {
       console.log("Weather error: ", e);
     }
+  }
+
+  // ★追加：演出関数
+  function applyWeatherEffect(code) {
+      const body = document.body;
+      
+      // クラスを一旦リセット
+      body.classList.remove('weather-effect-sunny', 'weather-effect-cloudy', 'weather-effect-rainy', 'weather-effect-snowy');
+
+      // コードに基づいてクラス付与
+      if (code === 0 || code === 1) { // 晴れ
+          body.classList.add('weather-effect-sunny');
+      } else if (code <= 3 || code === 45 || code === 48) { // 曇り・霧
+          body.classList.add('weather-effect-cloudy');
+      } else if ([71, 73, 75, 77, 85, 86].includes(code)) { // 雪
+          body.classList.add('weather-effect-snowy');
+      } else { // 雨・その他
+          body.classList.add('weather-effect-rainy');
+      }
+
+      // 3秒後にクラスを削除して元に戻す
+      setTimeout(() => {
+          body.classList.remove('weather-effect-sunny', 'weather-effect-cloudy', 'weather-effect-rainy', 'weather-effect-snowy');
+      }, 3000);
   }
 
   function getWmoWeatherIcon(code) {
