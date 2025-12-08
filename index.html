@@ -19,14 +19,48 @@
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-    background-color: var(--bg); margin: 0; padding: 0; color: #333;
+    /* デフォルト背景 */
+    background-color: var(--bg); 
+    margin: 0; padding: 0; color: #333;
     padding-bottom: 220px; 
-    transition: background 0.3s;
+    transition: background-color 0.8s ease; /* 色の変化をふんわりさせる */
+  }
+
+  /* ★追加：天気ごとの背景パターン（ドット柄） */
+  
+  /* 晴れ：薄いクリーム色 + オレンジドット */
+  body.weather-sunny {
+      background-color: #fffde7 !important;
+      background-image: radial-gradient(#ffe082 1.5px, transparent 1.5px);
+      background-size: 24px 24px; /* ドットの間隔 */
+  }
+
+  /* 曇り：薄いグレー + グレードット */
+  body.weather-cloudy {
+      background-color: #f5f5f5 !important;
+      background-image: radial-gradient(#bdbdbd 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
+  }
+
+  /* 雨：薄い水色 + 青ドット */
+  body.weather-rainy {
+      background-color: #e3f2fd !important;
+      background-image: radial-gradient(#64b5f6 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
+  }
+
+  /* 雪：薄いラベンダー + 白紫ドット */
+  body.weather-snowy {
+      background-color: #f3e5f5 !important;
+      background-image: radial-gradient(#ce93d8 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
   }
 
   /* ユーザー切り替え */
   .user-switcher {
-    display: flex; gap: 10px; padding: 10px 15px; background: #fff;
+    display: flex; gap: 10px; padding: 10px 15px; 
+    background: rgba(255, 255, 255, 0.8); /* 背景透過させて柄を見せる */
+    backdrop-filter: blur(5px);
     justify-content: center; border-bottom: 1px solid #eee;
   }
   .user-btn {
@@ -39,66 +73,18 @@
 
   /* 天気エリア */
   .weather-bar {
-    background: linear-gradient(to right, #e0f7fa, #e1bee7);
+    /* グラデーションをやめてシンプルに見やすく */
+    background: rgba(255, 255, 255, 0.9);
     padding: 8px 15px; font-size: 0.85rem; color: #555;
     display: flex; justify-content: center; align-items: center; gap: 10px;
     border-bottom: 1px solid #ddd; font-weight: bold;
     min-height: 24px;
-    /* ★追加：アニメーションの舞台として設定 */
-    position: relative;
-    overflow: hidden; 
   }
   .weather-icon { font-size: 1.2rem; margin-right: 2px; }
 
-  /* ★追加：バーの中を通過するアイコンのスタイル */
-  #weather-animation-icon {
-      position: absolute;
-      top: 50%;
-      left: -50px; /* 画面左外からスタート */
-      transform: translateY(-50%);
-      font-size: 2.2rem; /* バーと同じくらいのサイズ */
-      pointer-events: none;
-      opacity: 0;
-      z-index: 10;
-  }
-
-  /* 晴れ：回転しながら通過 */
-  .anim-pass-sunny {
-      animation: passSunny 4s linear forwards;
-  }
-  @keyframes passSunny {
-      0% { left: -50px; opacity: 0; transform: translateY(-50%) rotate(0deg); }
-      10% { opacity: 1; }
-      90% { opacity: 1; }
-      100% { left: 100%; opacity: 0; transform: translateY(-50%) rotate(360deg); }
-  }
-
-  /* 曇り：ふわふわ通過 */
-  .anim-pass-cloudy {
-      animation: passCloudy 5s linear forwards;
-  }
-  @keyframes passCloudy {
-      0% { left: -50px; opacity: 0; }
-      10% { opacity: 0.9; }
-      90% { opacity: 0.9; }
-      100% { left: 100%; opacity: 0; }
-  }
-
-  /* 雨・雪：少し揺れながら通過 */
-  .anim-pass-rainy {
-      animation: passRainy 4s linear forwards;
-  }
-  @keyframes passRainy {
-      0% { left: -50px; opacity: 0; transform: translateY(-50%); }
-      10% { opacity: 1; }
-      25% { transform: translateY(-40%); }
-      50% { transform: translateY(-60%); }
-      75% { transform: translateY(-40%); }
-      100% { left: 100%; opacity: 0; transform: translateY(-50%); }
-  }
-
   .sub-header {
-    background: #fff; position: sticky; top: 0; z-index: 100;
+    background: rgba(255, 255, 255, 0.9); 
+    position: sticky; top: 0; z-index: 100;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
   }
   .tools-bar {
@@ -244,7 +230,6 @@
     <span style="color:#FF3B30;" id="temp-max">--</span>℃ / 
     <span style="color:#007AFF;" id="temp-min">--</span>℃
   </span>
-  <span id="weather-animation-icon"></span>
 </div>
 
 <div class="user-switcher">
@@ -383,7 +368,7 @@
     });
   }
 
-  // 天気取得 & 演出
+  // 天気取得 & 背景演出
   async function getWeather() {
     try {
       const url = "https://api.open-meteo.com/v1/forecast?latitude=35.6995&longitude=139.6355&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo";
@@ -416,35 +401,31 @@
       
       document.getElementById('weather-bar').style.display = 'flex';
 
-      // アニメーション実行 (アイコンとコードを渡す)
-      applyWeatherEffect(code, weatherIcon);
+      // ★変更：背景の柄を変える
+      applyWeatherEffect(code);
 
     } catch (e) {
       console.log("Weather error: ", e);
     }
   }
 
-  // ★修正：バー内を通過する演出
-  function applyWeatherEffect(code, iconStr) {
-      const icon = document.getElementById('weather-animation-icon');
+  // ★変更：背景クラス切り替え関数
+  function applyWeatherEffect(code) {
+      const body = document.body;
       
-      // アイコン文字をセット
-      icon.textContent = iconStr;
-      
-      // アニメーションクラスをリセット
-      icon.className = '';
-      void icon.offsetWidth; // リフロー発生（アニメーション再点火用）
+      // クラスをリセット
+      body.classList.remove('weather-sunny', 'weather-cloudy', 'weather-rainy', 'weather-snowy');
 
-      let animClass = '';
-      if (code === 0 || code === 1) { 
-          animClass = 'anim-pass-sunny'; // 晴れ：回転
-      } else if (code <= 3 || code === 45 || code === 48) { 
-          animClass = 'anim-pass-cloudy'; // 曇り：ふわふわ
-      } else { 
-          animClass = 'anim-pass-rainy'; // 雨・雪：揺れ
+      // コードに基づいてクラス付与
+      if (code === 0 || code === 1) { // 晴れ
+          body.classList.add('weather-sunny');
+      } else if (code <= 3 || code === 45 || code === 48) { // 曇り・霧
+          body.classList.add('weather-cloudy');
+      } else if ([71, 73, 75, 77, 85, 86].includes(code)) { // 雪
+          body.classList.add('weather-snowy');
+      } else { // 雨・その他
+          body.classList.add('weather-rainy');
       }
-
-      icon.classList.add(animClass);
   }
 
   function getWmoWeatherIcon(code) {
