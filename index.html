@@ -23,49 +23,32 @@
     margin: 0; padding: 0; color: #333;
     padding-bottom: 220px; 
     transition: background-color 0.8s ease;
-    position: relative; /* アニメーションコンテナの基準点 */
+    position: relative;
     min-height: 100vh;
   }
 
-  /* ★変更：天気ごとの背景色（静的） */
-  body.weather-sunny { background-color: #e3f2fd !important; } /* 晴れ：青空 */
-  body.weather-cloudy { background-color: #cfd8dc !important; } /* 曇り：グレー */
-  /* 雨・雪はアニメーションで表現するため、背景色はデフォルトのまま */
+  /* 天気ごとの背景色（静的） */
+  body.weather-sunny { background-color: #e3f2fd !important; }
+  body.weather-cloudy { background-color: #cfd8dc !important; }
 
-  /* ★追加：天気アニメーション用のコンテナ */
+  /* 天気アニメーション用のコンテナ */
   #weather-animation-container {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      pointer-events: none; /* 操作を邪魔しない */
-      z-index: -1; /* コンテンツの後ろに表示 */
-      overflow: hidden;
+      pointer-events: none; z-index: -1; overflow: hidden;
   }
-
-  /* ★追加：雨粒のスタイル */
   .rain-drop {
-      position: absolute;
-      width: 2px; height: 15px;
-      background: rgba(0, 122, 255, 0.6); /* 青い雨 */
-      bottom: 100%; /* 画面上からスタート */
+      position: absolute; width: 2px; height: 15px;
+      background: rgba(0, 122, 255, 0.6); bottom: 100%;
       animation: fall linear infinite;
   }
-
-  /* ★追加：雪のスタイル */
   .snow-flake {
-      position: absolute;
-      width: 8px; height: 8px;
-      background: white;
-      border-radius: 50%;
-      box-shadow: 0 0 5px rgba(255,255,255,0.8);
-      bottom: 100%;
+      position: absolute; width: 8px; height: 8px;
+      background: white; border-radius: 50%;
+      box-shadow: 0 0 5px rgba(255,255,255,0.8); bottom: 100%;
       animation: fall linear infinite;
   }
+  @keyframes fall { to { transform: translateY(110vh); } }
 
-  /* 落下アニメーション */
-  @keyframes fall {
-      to { transform: translateY(110vh); } /* 画面下まで落ちる */
-  }
-
-  /* ユーザー切り替え */
   .user-switcher {
     display: flex; gap: 10px; padding: 10px 15px; 
     background: rgba(255, 255, 255, 0.8); 
@@ -80,7 +63,6 @@
   body[data-user="boy"] .user-btn[data-target="boy"] { background: #007AFF; color: white; border-color: #0056b3; }
   body[data-user="girl"] .user-btn[data-target="girl"] { background: #FF2D55; color: white; border-color: #d6002a; }
 
-  /* 天気エリア */
   .weather-bar {
     background: rgba(255, 255, 255, 0.9);
     padding: 8px 15px; font-size: 0.85rem; color: #555;
@@ -178,7 +160,7 @@
   }
 
   .score-area {
-    margin: 0 15px 30px 15px; background: white; border-radius: 12px;
+    margin: 0 15px 15px 15px; background: white; border-radius: 12px;
     padding: 15px; text-align: center;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     border: 2px solid var(--theme-color);
@@ -186,6 +168,34 @@
   .score-label { font-size: 0.9rem; color: #666; font-weight: bold; }
   .score-value { font-size: 2.2rem; font-weight: 800; color: var(--theme-color); line-height: 1.2; }
   .score-comment { font-size: 1rem; color: #333; margin-top: 5px; font-weight: bold; }
+
+  /* ★追加：お得計算機エリアのスタイル */
+  .calc-area {
+    margin: 30px 15px 15px 15px; background: white; border-radius: 12px;
+    padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  .calc-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;
+  }
+  .calc-title { font-weight: bold; color: #333; font-size: 1rem; }
+  .calc-reset-btn {
+      font-size: 0.8rem; color: #999; background: #eee; border: none;
+      padding: 4px 10px; border-radius: 10px; cursor: pointer;
+  }
+  .calc-table { width: 100%; border-collapse: collapse; }
+  .calc-row td { padding: 5px 2px; }
+  .calc-input {
+      width: 100%; padding: 8px; box-sizing: border-box;
+      border: 1px solid #ddd; border-radius: 6px;
+      font-size: 1rem; text-align: center; -webkit-appearance: none;
+  }
+  .calc-result {
+      text-align: center; font-size: 0.9rem; color: #666; font-weight: bold;
+  }
+  /* お得ハイライト */
+  .calc-row.is-cheapest .calc-input { border-color: var(--theme-color); background-color: #f0f8ff; }
+  .calc-row.is-cheapest .calc-result { color: #ff3b30; font-size: 1.1rem; }
 
   .fixed-footer {
     position: fixed; bottom: 0; left: 0; width: 100%;
@@ -286,6 +296,24 @@
   <div class="score-comment" id="score-comment">データなし</div>
 </div>
 
+<div class="calc-area">
+  <div class="calc-header">
+      <span class="calc-title">🛒 どっちがお得？計算機</span>
+      <button class="calc-reset-btn" onclick="clearCalc()">クリア</button>
+  </div>
+  <table class="calc-table">
+      <thead>
+          <tr>
+              <th style="font-size:0.8rem; color:#666;">量 (g/個)</th>
+              <th style="font-size:0.8rem; color:#666;">価格 (円)</th>
+              <th style="font-size:0.8rem; color:#666;">単価</th>
+          </tr>
+      </thead>
+      <tbody id="calc-body">
+          </tbody>
+  </table>
+</div>
+
 <div class="fixed-footer">
   <button class="btn-copy" onclick="generateAndCopy()">コピーを作成</button>
 </div>
@@ -358,7 +386,7 @@
   let nutritionMap = {}; 
   let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
   let myChart = null;
-  let weatherAnimInterval = null; // アニメーション用タイマー
+  let weatherAnimInterval = null;
 
   function initApp() {
     const lastUser = localStorage.getItem('fc_last_user');
@@ -376,8 +404,66 @@
       initChart();
       setupRealtimeListener(); 
       getWeather(); 
+      initCalc(); // ★追加：計算機初期化
     });
   }
+
+  // ★追加：計算機機能
+  function initCalc() {
+      const tbody = document.getElementById('calc-body');
+      tbody.innerHTML = '';
+      for (let i = 0; i < 4; i++) {
+          const row = document.createElement('tr');
+          row.className = 'calc-row';
+          row.innerHTML = `
+              <td><input type="number" class="calc-input qty" placeholder="0" oninput="updateCalc()"></td>
+              <td><input type="number" class="calc-input price" placeholder="0" oninput="updateCalc()"></td>
+              <td class="calc-result">-</td>
+          `;
+          tbody.appendChild(row);
+      }
+  }
+
+  window.updateCalc = function() {
+      const rows = document.querySelectorAll('.calc-row');
+      let minUnit = Infinity;
+      let validRows = [];
+
+      // 計算
+      rows.forEach(row => {
+          const qty = parseFloat(row.querySelector('.qty').value);
+          const price = parseFloat(row.querySelector('.price').value);
+          const resEl = row.querySelector('.calc-result');
+          
+          row.classList.remove('is-cheapest'); // 一旦リセット
+
+          if (qty > 0 && price > 0) {
+              const unitPrice = price / qty;
+              resEl.textContent = unitPrice.toFixed(2);
+              validRows.push({ row, unitPrice });
+              if (unitPrice < minUnit) minUnit = unitPrice;
+          } else {
+              resEl.textContent = '-';
+          }
+      });
+
+      // 最小値ハイライト（2つ以上入力がある場合のみ）
+      if (validRows.length >= 2) {
+          validRows.forEach(item => {
+              if (item.unitPrice === minUnit) {
+                  item.row.classList.add('is-cheapest');
+                  item.row.querySelector('.calc-result').innerHTML = `🏆 ${item.unitPrice.toFixed(2)}`;
+              }
+          });
+      }
+  };
+
+  window.clearCalc = function() {
+      const inputs = document.querySelectorAll('.calc-input');
+      inputs.forEach(input => input.value = '');
+      window.updateCalc();
+  };
+
 
   // 天気取得 & 背景演出
   async function getWeather() {
@@ -412,7 +498,6 @@
       
       document.getElementById('weather-bar').style.display = 'flex';
 
-      // ★変更：背景・アニメーション適用
       applyWeatherEffect(code);
 
     } catch (e) {
@@ -420,16 +505,13 @@
     }
   }
 
-  // ★変更：背景・アニメーション切り替え関数
   function applyWeatherEffect(code) {
       const body = document.body;
       const container = document.getElementById('weather-animation-container');
       
-      // リセット
       body.classList.remove('weather-sunny', 'weather-cloudy');
       clearWeatherAnimation();
 
-      // コードに基づいて適用
       if (code === 0 || code === 1) { // 晴れ
           body.classList.add('weather-sunny');
       } else if (code <= 3 || code === 45 || code === 48) { // 曇り・霧
@@ -441,7 +523,6 @@
       }
   }
 
-  // アニメーション停止・クリア
   function clearWeatherAnimation() {
       if (weatherAnimInterval) {
           clearInterval(weatherAnimInterval);
@@ -450,32 +531,27 @@
       document.getElementById('weather-animation-container').innerHTML = '';
   }
 
-  // 雨アニメーション開始
   function startRainAnimation(container) {
       weatherAnimInterval = setInterval(() => {
           const drop = document.createElement('div');
           drop.classList.add('rain-drop');
           drop.style.left = Math.random() * 100 + 'vw';
-          drop.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's'; // 落下速度
+          drop.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's';
           container.appendChild(drop);
-          
-          // 画面外に出たら削除
           setTimeout(() => { drop.remove(); }, 1000);
-      }, 50); // 発生頻度
+      }, 50);
   }
 
-  // 雪アニメーション開始
   function startSnowAnimation(container) {
       weatherAnimInterval = setInterval(() => {
           const flake = document.createElement('div');
           flake.classList.add('snow-flake');
           flake.style.left = Math.random() * 100 + 'vw';
           flake.style.opacity = Math.random();
-          flake.style.animationDuration = (Math.random() * 3 + 2) + 's'; // ゆっくり落下
+          flake.style.animationDuration = (Math.random() * 3 + 2) + 's';
           container.appendChild(flake);
-          
           setTimeout(() => { flake.remove(); }, 5000);
-      }, 200); // 発生頻度
+      }, 200);
   }
 
   function getWmoWeatherIcon(code) {
