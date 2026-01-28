@@ -18,30 +18,30 @@
   :root {
     --transition-speed: 0.3s;
     
-    /* モダングレイッシュカラー */
-    --color-boy: #6086B0;   
-    --color-girl: #C07B8E;  
+    /* ★変更：視認性の高いクリアなカラーに変更 */
+    --color-boy: #007AFF;   /* 鮮やかな青 */
+    --color-girl: #FF2D55;  /* 鮮やかなピンク */
     
-    --color-success: #699B7E; 
-    --color-danger: #C26D6D;  
-    --color-neutral: #E0E0E0; 
+    --color-success: #34C759; /* ハッキリした緑 */
+    --color-danger: #FF3B30;  /* ハッキリした赤 */
+    --color-neutral: #E0E0E0; /* グレー */
     
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --letter-spacing: 0.03em; 
   }
 
-  /* アイコンの共通設定 */
+  /* アイコン設定 */
   .material-symbols-rounded {
-    font-size: 1.1rem; /* 文字より少し大きく */
+    font-size: 1.1rem;
     vertical-align: middle;
     font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
-    margin-right: 4px; /* アイコンと文字の間隔 */
+    margin-right: 4px;
   }
   
-  /* 栄養素リスト用のアイコン色 */
-  .icon-yellow { color: #D4A056; }
-  .icon-red    { color: #C26D6D; }
-  .icon-green  { color: #699B7E; }
+  /* 栄養素アイコン色 */
+  .icon-yellow { color: #FF9500; }
+  .icon-red    { color: #FF3B30; }
+  .icon-green  { color: #34C759; }
 
   /* 1. Minimal (ミニマル) */
   body[data-theme="minimal"] {
@@ -64,11 +64,11 @@
 
   /* 2. Glass (グラス) */
   body[data-theme="glass"] {
-    --bg-body: linear-gradient(135deg, #E3E9F2 0%, #E8E4F0 100%);
+    --bg-body: linear-gradient(135deg, #E0F7FA 0%, #E1BEE7 100%);
     --bg-card: rgba(255, 255, 255, 0.65);
     --bg-header: rgba(255, 255, 255, 0.75);
     --text-main: #3A3A3C;
-    --text-sub: #7C7C82;
+    --text-sub: #636366;
     --border-color: rgba(255, 255, 255, 0.8);
     --shadow-card: 0 4px 24px -1px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
     --shadow-btn: 0 2px 8px rgba(0,0,0,0.03), inset 0 0 0 1px rgba(255,255,255,0.4);
@@ -76,7 +76,7 @@
     --radius-card: 12px;
     --radius-btn: 10px;
     --btn-bg-off: rgba(255, 255, 255, 0.5);
-    --btn-text-off: #7C7C82;
+    --btn-text-off: #636366;
     --backdrop: blur(16px) saturate(150%);
     --border-width: 0px;
   }
@@ -87,7 +87,7 @@
     --bg-card: #EEF1F5;
     --bg-header: rgba(238, 241, 245, 0.95);
     --text-main: #4A5568;
-    --text-sub: #A0AEC0;
+    --text-sub: #8E9AAF;
     --border-color: transparent;
     --shadow-card: 8px 8px 16px #D9E2EC, -8px -8px 16px #FFFFFF;
     --shadow-btn: 4px 4px 8px #D9E2EC, -4px -4px 8px #FFFFFF;
@@ -96,18 +96,20 @@
     --radius-card: 16px;
     --radius-btn: 10px;
     --btn-bg-off: #EEF1F5;
-    --btn-text-off: #A0AEC0;
+    --btn-text-off: #8E9AAF;
     --backdrop: none;
     --border-width: 0px;
   }
 
-  body[data-user="boy"] { --accent: var(--color-boy); --accent-light: #F0F4F8; }
-  body[data-user="girl"] { --accent: var(--color-girl); --accent-light: #F9F0F2; }
-  body[data-theme="glass"][data-user="boy"] { --accent: #5076A0; }
+  /* ユーザーカラー適用 */
+  body[data-user="boy"] { --accent: var(--color-boy); --accent-light: #E0F0FF; }
+  body[data-user="girl"] { --accent: var(--color-girl); --accent-light: #FFE0E6; }
 
-  body:not([data-theme="glass"]).weather-sunny { background-color: #EBF7FF !important; }
-  body:not([data-theme="glass"]).weather-cloudy { background-color: #E0E5EC !important; }
+  /* 天気背景の上書き (Glassテーマ以外) */
+  body:not([data-theme="glass"]).weather-sunny { background-color: #E3F2FD !important; }
+  body:not([data-theme="glass"]).weather-cloudy { background-color: #CFD8DC !important; }
 
+  /* --- ベーススタイル --- */
   body {
     font-family: var(--font-family);
     letter-spacing: var(--letter-spacing);
@@ -122,13 +124,15 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  .emoji-toned { filter: grayscale(0.1); display: inline-block; }
+
   #weather-animation-container {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       pointer-events: none; z-index: -1; overflow: hidden;
   }
   .rain-drop {
       position: absolute; width: 3px; height: 20px; 
-      background: rgba(96, 134, 176, 0.6); bottom: 100%;
+      background: rgba(0, 122, 255, 0.6); bottom: 100%;
       animation: fall linear infinite;
   }
   .snow-flake {
@@ -178,12 +182,14 @@
     display: flex; justify-content: center; align-items: center; gap: 4px;
   }
   
+  /* アクティブ時の色（鮮やか） */
   body[data-user="boy"] .user-btn[data-target="boy"],
   body[data-user="girl"] .user-btn[data-target="girl"] { 
     background: var(--accent); color: white; border-color: transparent;
     box-shadow: 0 2px 8px rgba(0,0,0, 0.15);
   }
   
+  /* Glassテーマのアクティブ調整 */
   body[data-theme="glass"][data-user="boy"] .user-btn[data-target="boy"],
   body[data-theme="glass"][data-user="girl"] .user-btn[data-target="girl"] {
       opacity: 1; background: var(--accent); box-shadow: 0 4px 12px rgba(0,0,0,0.2);
@@ -263,13 +269,14 @@
 
   input[type="radio"] { display: none; }
   
+  /* 視認性の高いカラー適用 */
   input[value="finish"]:checked + .radio-label { 
     background-color: var(--color-success); color: white; border-color: transparent; 
-    box-shadow: 0 2px 8px rgba(105, 155, 126, 0.4);
+    box-shadow: 0 2px 8px rgba(52, 199, 89, 0.4);
   }
   input[value="left"]:checked + .radio-label { 
     background-color: var(--color-danger); color: white; border-color: transparent;
-    box-shadow: 0 2px 8px rgba(194, 109, 109, 0.4);
+    box-shadow: 0 2px 8px rgba(255, 59, 48, 0.4);
   }
   input[value="none"]:checked + .radio-label { 
     background-color: var(--color-neutral); color: #999; box-shadow: none;
@@ -400,7 +407,7 @@
     padding: 12px; border: 1px solid transparent; border-radius: 8px; font-size: 0.95rem; cursor: pointer; font-weight: 600; transition: 0.2s; font-family: inherit;
   }
   .btn-reset-one { background: var(--btn-bg-off); color: var(--text-main); border-color: var(--border-color); }
-  .btn-reset-all { background: rgba(194, 109, 109, 0.1); color: var(--color-danger); }
+  .btn-reset-all { background: rgba(255, 59, 48, 0.1); color: var(--color-danger); }
   .btn-cancel { background: transparent; color: var(--text-sub); margin-top: 5px; }
 
   .nutrition-list { text-align: left; font-size: 0.9rem; line-height: 1.7; color: var(--text-main); }
@@ -425,8 +432,8 @@
     <span id="weather-pop"></span>%
   </span>
   <span style="margin-left:10px;">
-    <span style="color:var(--color-danger);" id="temp-max">--</span>℃ / 
-    <span style="color:var(--color-boy);" id="temp-min">--</span>℃
+    <span style="color:#FF3B30;" id="temp-max">--</span>℃ / 
+    <span style="color:#007AFF;" id="temp-min">--</span>℃
   </span>
 </div>
 
@@ -439,7 +446,7 @@
       <span class="material-symbols-rounded">music_note</span> 女の子
     </button>
     <button id="btn-partner-copy" class="btn-tool btn-partner-copy" onclick="copyToPartner()">
-      <span class="material-symbols-rounded">content_copy</span> 🎵へコピー
+      <span class="material-symbols-rounded">content_copy</span> コピー
     </button>
     <button class="btn-tool" onclick="showResetModal()">リセット</button>
   </div>
@@ -533,19 +540,19 @@
     <div class="modal-title">栄養素のヒミツ</div>
     <div class="nutrition-list">
       <div class="nutrition-item">
-        <span class="nut-label" style="color:#D4A056">
+        <span class="nut-label" style="color:#FF9500">
           <span class="material-symbols-rounded icon-yellow">bolt</span> 黄（エネルギー）
         </span>
         <span class="nut-desc">炭水化物、油、砂糖<br>（パン、ご飯、ポテト、甘栗など）</span>
       </div>
       <div class="nutrition-item">
-        <span class="nut-label" style="color:#C26D6D">
+        <span class="nut-label" style="color:#FF3B30">
           <span class="material-symbols-rounded icon-red">fitness_center</span> 赤（からだを作る）
         </span>
         <span class="nut-desc">タンパク質、カルシウム<br>（肉、魚、卵、牛乳、豆、チーズ）</span>
       </div>
       <div class="nutrition-item">
-        <span class="nut-label" style="color:#699B7E">
+        <span class="nut-label" style="color:#34C759">
           <span class="material-symbols-rounded icon-green">spa</span> 緑（調子を整える）
         </span>
         <span class="nut-desc">ビタミン、ミネラル、食物繊維<br>（野菜、果物）</span>
@@ -746,6 +753,7 @@
       const daily = data.daily;
       weatherCode = daily.weathercode[targetIndex]; 
       const weatherText = getWmoWeatherText(weatherCode);
+      const weatherIcon = getWmoWeatherIcon(weatherCode);
       const maxTemp = daily.temperature_2m_max[targetIndex];
       const minTemp = daily.temperature_2m_min[targetIndex];
       const pop = daily.precipitation_probability_max[targetIndex];
@@ -818,6 +826,16 @@
       }, 200);
   }
 
+  function getWmoWeatherIcon(code) {
+    if (code === 0) return "☀️";
+    if ([1, 2, 3].includes(code)) return "⛅️";
+    if ([45, 48].includes(code)) return "🌫️";
+    if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return "☂️";
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return "☃️";
+    if (code >= 95) return "⚡️";
+    return "☁️";
+  }
+  
   function getWmoWeatherText(code) {
     if (code === 0) return "晴天";
     if ([1, 2, 3].includes(code)) return "くもり"; 
@@ -890,7 +908,8 @@
     document.getElementById(`tab-${currentMeal}`).classList.add('active');
     
     const partnerBtn = document.getElementById('btn-partner-copy');
-    partnerBtn.innerHTML = `<span class="material-symbols-rounded">content_copy</span> ${currentUser === 'boy' ? '🎵へコピー' : '🌙へコピー'}`;
+    // ★変更：「へ」を削除して「🎵コピー」に変更
+    partnerBtn.innerHTML = `<span class="material-symbols-rounded">content_copy</span> ${currentUser === 'boy' ? '🎵コピー' : '🌙コピー'}`;
 
     const container = document.getElementById('list-container');
     container.innerHTML = '';
@@ -955,7 +974,7 @@
           borderColor: 'rgba(0, 122, 255, 1)',
           borderWidth: 3,
           pointRadius: 5,
-          pointBackgroundColor: ['#D4A056', '#C26D6D', '#699B7E'],
+          pointBackgroundColor: ['#FF9500', '#FF3B30', '#34C759'],
           pointBorderColor: '#fff',
           pointHoverRadius: 7,
         }]
