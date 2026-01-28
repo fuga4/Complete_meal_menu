@@ -16,16 +16,10 @@
   :root {
     --primary-hue: 210; /* 青 */
     --accent-hue: 340;  /* 赤 */
-    
-    /* トランジション設定（UI切り替え時のアニメーション） */
     --transition-speed: 0.4s;
   }
 
-  /* =========================================
-     テーマ別デザイン定義 (CSS変数でUIを制御)
-     ========================================= */
-
-  /* 1. Minimal (ミニマル) - 清潔・シンプル */
+  /* 1. Minimal (ミニマル) */
   body[data-theme="minimal"] {
     --bg-body: #F2F2F7;
     --bg-card: #FFFFFF;
@@ -33,90 +27,69 @@
     --text-main: #1c1c1e;
     --text-sub: #8e8e93;
     --border-color: #e5e5ea;
-    
     --shadow-card: 0 1px 3px rgba(0,0,0,0.05);
     --shadow-btn: none;
     --shadow-float: 0 4px 12px rgba(0,0,0,0.1);
-    
     --radius-card: 12px;
     --radius-btn: 8px;
     --btn-bg-off: #e5e5ea;
     --btn-text-off: #8e8e93;
-    
     --backdrop: blur(20px);
     --border-width: 1px;
   }
 
-  /* 2. Glass (グラス 2026) - 未来的・透け感・グラデーション */
+  /* 2. Glass (グラス 2026) */
   body[data-theme="glass"] {
-    /* 背景にグラデーションを敷く */
     --bg-body: linear-gradient(135deg, #e0f7fa 0%, #e1bee7 100%);
-    --bg-card: rgba(255, 255, 255, 0.55); /* 半透明 */
+    --bg-card: rgba(255, 255, 255, 0.55);
     --bg-header: rgba(255, 255, 255, 0.6);
     --text-main: #2d3436;
     --text-sub: #636e72;
     --border-color: rgba(255, 255, 255, 0.6);
-    
-    /* 光の反射と影で浮遊感を出す */
-    --shadow-card: 
-      0 8px 32px 0 rgba(31, 38, 135, 0.1),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+    --shadow-card: 0 8px 32px 0 rgba(31, 38, 135, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
     --shadow-btn: 0 4px 15px rgba(0,0,0,0.05);
     --shadow-float: 0 10px 40px rgba(0,0,0,0.15);
-    
-    --radius-card: 24px; /* 大きな角丸 */
-    --radius-btn: 50px; /* カプセル型 */
+    --radius-card: 24px;
+    --radius-btn: 50px;
     --btn-bg-off: rgba(255, 255, 255, 0.5);
     --btn-text-off: #636e72;
-    
-    --backdrop: blur(12px) saturate(180%); /* 強いぼかしと彩度 */
-    --border-width: 0px; /* ボーダーは影で表現 */
+    --backdrop: blur(12px) saturate(180%);
+    --border-width: 0px;
   }
 
-  /* 3. Clay (クレイ) - ぷっくり・ソフト3D・親しみやすさ */
+  /* 3. Clay (クレイ) */
   body[data-theme="clay"] {
     --bg-body: #f0f4f8;
-    --bg-card: #f0f4f8; /* 背景と同じ色にして影で浮かす */
+    --bg-card: #f0f4f8;
     --bg-header: rgba(240, 244, 248, 0.95);
     --text-main: #485460;
     --text-sub: #808e9b;
     --border-color: transparent;
-    
-    /* 2つの影（光と影）でぷっくり感を出す */
-    --shadow-card: 
-      20px 20px 60px #d1d9e6, 
-      -20px -20px 60px #ffffff;
-    --shadow-btn: 
-      5px 5px 10px #d1d9e6, 
-      -5px -5px 10px #ffffff;
-    --shadow-btn-active: 
-      inset 5px 5px 10px #d1d9e6, 
-      inset -5px -5px 10px #ffffff;
+    --shadow-card: 20px 20px 60px #d1d9e6, -20px -20px 60px #ffffff;
+    --shadow-btn: 5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff;
+    --shadow-btn-active: inset 5px 5px 10px #d1d9e6, inset -5px -5px 10px #ffffff;
     --shadow-float: 20px 20px 60px #c8d0e7;
-
-    --radius-card: 30px; /* 非常に丸い */
+    --radius-card: 30px;
     --radius-btn: 20px;
     --btn-bg-off: #f0f4f8;
     --btn-text-off: #808e9b;
-    
     --backdrop: none;
     --border-width: 0px;
   }
 
-  /* ユーザーカラー定義 */
+  /* ユーザーカラー */
   body[data-user="boy"] { --accent: #007AFF; --accent-light: #E0F0FF; }
   body[data-user="girl"] { --accent: #FF2D55; --accent-light: #FFE0E6; }
 
-  /* 天気背景の上書き (Glassテーマ以外で有効) */
+  /* 天気背景の上書き */
   body[data-theme="minimal"].weather-sunny, body[data-theme="clay"].weather-sunny { background-color: #e3f2fd !important; }
   body[data-theme="minimal"].weather-cloudy, body[data-theme="clay"].weather-cloudy { background-color: #cfd8dc !important; }
-  /* Glassテーマはグラデーション優先のため背景色変更なし */
 
-  /* --- ベーススタイル --- */
+  /* ベーススタイル */
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-    background: var(--bg-body); /* グラデーション対応のためbackgroundプロパティ */
-    background-attachment: fixed; /* グラデーション固定 */
+    background: var(--bg-body); 
+    background-attachment: fixed;
     margin: 0; padding: 0; color: var(--text-main);
     padding-bottom: 220px; 
     transition: all var(--transition-speed) ease;
@@ -125,7 +98,6 @@
     overflow-x: hidden;
   }
 
-  /* アニメーションコンテナ */
   #weather-animation-container {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       pointer-events: none; z-index: -1; overflow: hidden;
@@ -153,14 +125,12 @@
     transition: all var(--transition-speed);
   }
 
-  /* ヘッダー群固定 */
   .sticky-header-group {
     position: sticky; top: 0; z-index: 100;
     background: var(--bg-header);
     backdrop-filter: var(--backdrop);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.03); /* 共通で薄い影 */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
     transition: all var(--transition-speed);
-    /* Glassテーマ用の境界線 */
     border-bottom: 1px solid rgba(255,255,255,0.1);
   }
 
@@ -170,7 +140,6 @@
     border-bottom: var(--border-width) solid var(--border-color);
   }
 
-  /* ユーザー切り替えボタン */
   .user-btn {
     flex: 2; padding: 10px 4px;
     border-radius: var(--radius-btn); 
@@ -180,25 +149,19 @@
     color: var(--btn-text-off); 
     box-shadow: var(--shadow-btn);
     cursor: pointer; font-size: 0.9rem; 
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* バネのような動き */
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     touch-action: manipulation; white-space: nowrap; text-align: center;
   }
-  /* アクティブ時のスタイル */
   body[data-user="boy"] .user-btn[data-target="boy"],
   body[data-user="girl"] .user-btn[data-target="girl"] { 
-    background: var(--accent); 
-    color: white; 
-    transform: translateY(-1px); /* 少し浮く */
-    box-shadow: 0 4px 12px rgba(var(--primary-hue), 100, 50, 0.4); /* 発光感 */
+    background: var(--accent); color: white; transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--primary-hue), 100, 50, 0.4);
   }
-  /* Clayテーマのアクティブ時は凹ませる */
   body[data-theme="clay"][data-user="boy"] .user-btn[data-target="boy"],
   body[data-theme="clay"][data-user="girl"] .user-btn[data-target="girl"] {
-    transform: translateY(1px);
-    box-shadow: var(--shadow-btn-active);
+    transform: translateY(1px); box-shadow: var(--shadow-btn-active);
   }
 
-  /* ツールボタン */
   .btn-tool {
     flex: 1; font-size: 0.75rem; 
     background: var(--bg-card); 
@@ -211,11 +174,7 @@
     transition: all 0.2s;
   }
   .btn-tool:active { transform: scale(0.95); }
-  .btn-partner-copy {
-    color: var(--accent); 
-    /* Glassテーマなどでボーダーが見えない時のため背景色を少しつける */
-    background: rgba(255,255,255,0.8);
-  }
+  .btn-partner-copy { color: var(--accent); background: rgba(255,255,255,0.8); }
   .btn-partner-copy::before { content: '📋'; font-size: 1rem; margin-right: 3px; }
 
   .tabs { display: flex; width: 100%; }
@@ -226,7 +185,6 @@
   }
   .tab-btn.active {
     border-bottom-color: var(--accent); color: var(--accent); 
-    /* 背景色をうっすらつける */
     background: linear-gradient(to bottom, transparent, var(--accent-light));
   }
 
@@ -238,48 +196,35 @@
   .category-title::before {
     content: ''; display: inline-block; width: 6px; height: 6px;
     background: var(--accent); margin-right: 8px; border-radius: 50%;
-    box-shadow: 0 0 8px var(--accent); /* 光る点 */
+    box-shadow: 0 0 8px var(--accent);
   }
 
-  /* カードスタイル */
   .list-card {
     background: var(--bg-card); 
     border-radius: var(--radius-card); 
     box-shadow: var(--shadow-card);
-    margin-bottom: 15px;
-    overflow: hidden;
+    margin-bottom: 15px; overflow: hidden;
     transition: all var(--transition-speed);
-    /* Glass用 */
     backdrop-filter: var(--backdrop); 
     border: var(--border-width) solid var(--border-color);
   }
   .item-row {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 18px; 
-    border-bottom: 1px solid rgba(0,0,0,0.05); /* 非常に薄い線 */
+    padding: 14px 18px; border-bottom: 1px solid rgba(0,0,0,0.05);
   }
   .item-row:last-child { border-bottom: none; }
   .item-name { font-weight: 600; font-size: 1rem; color: var(--text-main); }
 
-  /* ラジオボタン（UI切り替え） */
   .options { display: flex; gap: 6px; }
   .radio-label {
-    padding: 8px 12px; 
-    border-radius: 10px; 
-    border: 1px solid transparent; /* デフォルト透明 */
-    font-size: 0.8rem; cursor: pointer; 
-    background: var(--btn-bg-off); 
-    color: var(--btn-text-off);
-    min-width: 40px; text-align: center;
-    transition: all 0.2s;
-    font-weight: bold;
-    box-shadow: var(--shadow-btn); /* Clay用 */
+    padding: 8px 12px; border-radius: 10px; border: 1px solid transparent;
+    font-size: 0.8rem; cursor: pointer; background: var(--btn-bg-off); 
+    color: var(--btn-text-off); min-width: 40px; text-align: center;
+    transition: all 0.2s; font-weight: bold; box-shadow: var(--shadow-btn);
   }
-  /* Minimalテーマだけは線をつける */
   body[data-theme="minimal"] .radio-label { border-color: var(--border-color); background: #fff; box-shadow: none; }
 
   input[type="radio"] { display: none; }
-  
   input[value="finish"]:checked + .radio-label { 
     background-color: #34C759; color: white; border-color: transparent; 
     box-shadow: 0 4px 10px rgba(52, 199, 89, 0.3);
@@ -291,44 +236,29 @@
   input[value="none"]:checked + .radio-label { 
     background-color: #e0e0e0; color: #a0a0a0; box-shadow: none;
   }
-  /* Clayテーマのチェック時（凹ませる） */
   body[data-theme="clay"] input:checked + .radio-label {
-    transform: scale(0.95);
-    box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
+    transform: scale(0.95); box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
   }
 
   .other-box { 
-    background: var(--bg-card); 
-    padding: 15px; 
-    border-radius: var(--radius-card); 
-    margin-bottom: 10px; 
-    box-shadow: var(--shadow-card);
-    backdrop-filter: var(--backdrop);
-    border: var(--border-width) solid var(--border-color);
+    background: var(--bg-card); padding: 15px; border-radius: var(--radius-card); 
+    margin-bottom: 10px; box-shadow: var(--shadow-card);
+    backdrop-filter: var(--backdrop); border: var(--border-width) solid var(--border-color);
   }
   .other-label { font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block; color: var(--text-main); }
   .other-input {
-    width: 100%; padding: 12px; 
-    border: 1px solid rgba(0,0,0,0.1); 
-    border-radius: 12px;
+    width: 100%; padding: 12px; border: 1px solid rgba(0,0,0,0.1); border-radius: 12px;
     font-size: 1rem; box-sizing: border-box; -webkit-appearance: none;
-    background: rgba(255,255,255,0.5); 
-    color: var(--text-main);
-    transition: 0.2s;
+    background: rgba(255,255,255,0.5); color: var(--text-main); transition: 0.2s;
   }
   .other-input:focus { outline: none; border-color: var(--accent); background: #fff; }
 
-  /* グラフエリア */
   .chart-container {
-    margin: 10px 15px 15px 15px; 
-    background: var(--bg-card); 
-    border-radius: var(--radius-card);
-    padding: 15px 5px; 
-    box-shadow: var(--shadow-card);
+    margin: 10px 15px 15px 15px; background: var(--bg-card); border-radius: var(--radius-card);
+    padding: 15px 5px; box-shadow: var(--shadow-card);
     height: 350px; position: relative;
     display: flex; flex-direction: column; align-items: center;
-    backdrop-filter: var(--backdrop);
-    border: var(--border-width) solid var(--border-color);
+    backdrop-filter: var(--backdrop); border: var(--border-width) solid var(--border-color);
   }
   .chart-title { 
     text-align: center; font-size: 0.9rem; color: var(--text-sub); margin-bottom: 0px; 
@@ -340,18 +270,12 @@
     font-size: 12px; line-height: 18px; text-align: center;
   }
 
-  /* スコアエリア */
   .score-area {
-    margin: 0 15px 15px 15px; 
-    background: var(--bg-card); 
-    border-radius: var(--radius-card);
-    padding: 20px; text-align: center;
-    box-shadow: var(--shadow-float); /* ここだけ強めの影 */
-    border: 2px solid var(--accent);
-    backdrop-filter: var(--backdrop);
+    margin: 0 15px 15px 15px; background: var(--bg-card); border-radius: var(--radius-card);
+    padding: 20px; text-align: center; box-shadow: var(--shadow-float);
+    border: 2px solid var(--accent); backdrop-filter: var(--backdrop);
     position: relative; overflow: hidden;
   }
-  /* Glassテーマ用の光沢 */
   body[data-theme="glass"] .score-area::before {
     content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
     background: linear-gradient(to bottom right, rgba(255,255,255,0.3), transparent);
@@ -359,21 +283,15 @@
   }
   .score-label { font-size: 0.9rem; color: var(--text-sub); font-weight: bold; }
   .score-value { 
-    font-size: 2.8rem; font-weight: 800; 
-    color: var(--accent); line-height: 1.1; 
+    font-size: 2.8rem; font-weight: 800; color: var(--accent); line-height: 1.1; 
     text-shadow: 0 2px 5px rgba(0,0,0,0.1);
   }
   .score-comment { font-size: 1.1rem; color: var(--text-main); margin-top: 5px; font-weight: bold; }
 
-  /* 計算機エリア */
   .calc-area {
-    margin: 30px 15px 15px 15px; 
-    background: var(--bg-card); 
-    border-radius: var(--radius-card);
-    padding: 15px; 
-    box-shadow: var(--shadow-card);
-    backdrop-filter: var(--backdrop);
-    border: var(--border-width) solid var(--border-color);
+    margin: 30px 15px 15px 15px; background: var(--bg-card); border-radius: var(--radius-card);
+    padding: 15px; box-shadow: var(--shadow-card);
+    backdrop-filter: var(--backdrop); border: var(--border-width) solid var(--border-color);
   }
   .calc-header {
       display: flex; justify-content: space-between; align-items: center;
@@ -392,54 +310,31 @@
       font-size: 1rem; text-align: center; -webkit-appearance: none;
       background: rgba(255,255,255,0.5); color: var(--text-main);
   }
-  .calc-result {
-      text-align: center; font-size: 0.9rem; color: var(--text-sub); font-weight: bold;
-  }
+  .calc-result { text-align: center; font-size: 0.9rem; color: var(--text-sub); font-weight: bold; }
   .calc-row.is-cheapest .calc-input { 
-    border-color: var(--accent); 
-    background-color: var(--accent-light); 
-    box-shadow: 0 0 5px var(--accent);
+    border-color: var(--accent); background-color: var(--accent-light); box-shadow: 0 0 5px var(--accent);
   }
   .calc-row.is-cheapest .calc-result { color: #ff3b30; font-size: 1.1rem; }
 
-  /* テーマ切り替えUIエリア */
-  .theme-switcher-area {
-    margin: 30px 15px 100px 15px;
-    text-align: center;
-  }
+  .theme-switcher-area { margin: 30px 15px 100px 15px; text-align: center; }
   .theme-title { font-size:0.8rem; color:var(--text-sub); margin-bottom:8px; font-weight:bold; }
   .theme-btn-group {
-    display: inline-flex;
-    background: var(--bg-card);
-    border-radius: 30px;
-    padding: 5px;
-    box-shadow: var(--shadow-card);
-    backdrop-filter: var(--backdrop);
+    display: inline-flex; background: var(--bg-card); border-radius: 30px;
+    padding: 5px; box-shadow: var(--shadow-card); backdrop-filter: var(--backdrop);
   }
   .theme-btn {
-    padding: 10px 20px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    border-radius: 25px;
-    font-size: 0.9rem;
-    font-weight: bold;
-    color: var(--text-sub);
-    transition: 0.3s;
+    padding: 10px 20px; border: none; background: transparent; cursor: pointer;
+    border-radius: 25px; font-size: 0.9rem; font-weight: bold; color: var(--text-sub); transition: 0.3s;
   }
   .theme-btn.active {
-    background: var(--text-main); /* 黒(or濃いグレー)背景 */
-    color: white;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    background: var(--text-main); color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
   }
 
   .fixed-footer {
     position: fixed; bottom: 0; left: 0; width: 100%;
     background: var(--bg-header); backdrop-filter: blur(15px);
-    padding: 15px 20px; box-sizing: border-box; 
-    border-top: 1px solid rgba(0,0,0,0.05);
-    z-index: 200;
-    box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
+    padding: 15px 20px; box-sizing: border-box; border-top: 1px solid rgba(0,0,0,0.05);
+    z-index: 200; box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
   }
   .btn-copy {
     width: 100%; border: none; padding: 16px; border-radius: 16px;
@@ -450,11 +345,9 @@
   }
   .btn-copy:active { transform: scale(0.98); }
 
-  /* モーダル */
   .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.4); 
-    backdrop-filter: blur(5px); /* 背景ぼかし */
+    background: rgba(0,0,0,0.4); backdrop-filter: blur(5px);
     z-index: 999; display: none;
     align-items: center; justify-content: center;
     animation: fadeIn 0.3s ease;
@@ -462,14 +355,12 @@
   .modal-content {
     background: var(--bg-card); width: 85%; max-width: 320px; border-radius: 24px;
     padding: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center;
-    color: var(--text-main);
-    border: 1px solid rgba(255,255,255,0.5);
+    color: var(--text-main); border: 1px solid rgba(255,255,255,0.5);
   }
   .modal-title { font-size: 1.2rem; font-weight: 800; margin-bottom: 20px; }
   .modal-btn-group { display: flex; flex-direction: column; gap: 12px; }
   .modal-btn {
-    padding: 14px; border: none; border-radius: 12px; font-size: 1rem; cursor: pointer; font-weight: bold;
-    transition: 0.2s;
+    padding: 14px; border: none; border-radius: 12px; font-size: 1rem; cursor: pointer; font-weight: bold; transition: 0.2s;
   }
   .btn-reset-one { background: var(--btn-bg-off); color: var(--text-main); }
   .btn-reset-all { background: #ffe0e0; color: #FF3B30; }
@@ -651,9 +542,16 @@
     const lastUser = localStorage.getItem('fc_last_user');
     if(lastUser) currentUser = lastUser;
 
-    // テーマ読み込み
+    // テーマ読み込み（安全装置付き）
     const lastTheme = localStorage.getItem('fc_theme');
-    if(lastTheme) switchTheme(lastTheme);
+    if(lastTheme) {
+        // 旧テーマ名や無効なテーマ名だったら minimal に強制する
+        if (['minimal', 'glass', 'clay'].includes(lastTheme)) {
+            switchTheme(lastTheme);
+        } else {
+            switchTheme('minimal');
+        }
+    }
 
     const currentHour = new Date().getHours();
     if (currentHour >= 12) {
@@ -672,15 +570,17 @@
     });
   }
 
-  // テーマ切り替え関数
+  // テーマ切り替え
   window.switchTheme = function(themeName) {
       currentTheme = themeName;
       localStorage.setItem('fc_theme', themeName);
       
       document.body.setAttribute('data-theme', themeName);
       
+      // ボタンのアクティブ切り替え（エラーガード）
       document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
-      document.getElementById(`theme-btn-${themeName}`).classList.add('active');
+      const activeBtn = document.getElementById(`theme-btn-${themeName}`);
+      if(activeBtn) activeBtn.classList.add('active');
 
       if (weatherCode !== null) {
           applyWeatherEffect(weatherCode);
@@ -817,13 +717,18 @@
       body.classList.remove('weather-sunny', 'weather-cloudy');
       clearWeatherAnimation();
 
-      if (code === 0 || code === 1) { // 晴れ
-          body.classList.add('weather-sunny');
-      } else if (code <= 3 || code === 45 || code === 48) { // 曇り
-          body.classList.add('weather-cloudy');
-      } else if ([71, 73, 75, 77, 85, 86].includes(code)) { // 雪
+      // Glassテーマ以外でのみ背景色を変更
+      if (currentTheme !== 'glass') {
+        if (code === 0 || code === 1) { 
+            body.classList.add('weather-sunny');
+        } else if (code <= 3 || code === 45 || code === 48) { 
+            body.classList.add('weather-cloudy');
+        }
+      }
+
+      if ([71, 73, 75, 77, 85, 86].includes(code)) { // 雪
           startSnowAnimation(container);
-      } else { // 雨
+      } else if (code > 3) { // 雨・その他
           startRainAnimation(container);
       }
   }
