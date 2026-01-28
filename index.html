@@ -34,8 +34,8 @@
   .material-symbols-rounded {
     font-size: 1.1rem;
     vertical-align: middle;
-    font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24;
-    margin-right: 2px;
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+    margin-right: 4px;
   }
   
   .icon-yellow { color: #FF9500; }
@@ -234,6 +234,14 @@
     background: var(--accent); margin-right: 8px; border-radius: 2px; opacity: 0.8;
   }
 
+  /* ★追加：サブカテゴリ見出しのスタイル */
+  .subcategory-title {
+    font-size: 0.75rem; color: var(--text-sub); 
+    margin: 10px 15px 5px 15px; padding-top: 5px;
+    font-weight: 700; border-bottom: 1px dashed var(--border-color);
+    display: block; opacity: 0.8;
+  }
+
   .list-card {
     background: var(--bg-card); border-radius: var(--radius-card); 
     box-shadow: var(--shadow-card); margin-bottom: 12px; overflow: hidden;
@@ -243,7 +251,7 @@
   
   .item-row {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 10px 15px; /* 行間調整 */
+    padding: 10px 15px; 
     border-bottom: 1px solid rgba(0,0,0,0.03);
     min-height: 44px;
   }
@@ -414,10 +422,10 @@
 
   @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
 
-  /* ★追加：フローティングお天気バッジ */
+  /* フローティングお天気バッジ */
   .weather-badge {
     position: fixed;
-    bottom: 90px; /* コピーボタン(Footer)の上 */
+    bottom: 90px;
     right: 20px;
     z-index: 190;
     background: white;
@@ -429,8 +437,10 @@
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     border: 1px solid rgba(0,0,0,0.05);
     backdrop-filter: blur(10px);
+    cursor: pointer; /* クリック可能を示す */
   }
-  /* 天気別バッジカラー */
+  .weather-badge:active { transform: scale(0.95); }
+
   .badge-sunny { background-color: #FFFDE7; color: #F57F17; border-color: #FBC02D; }
   .badge-cloudy { background-color: #ECEFF1; color: #546E7A; border-color: #CFD8DC; }
   .badge-rainy { background-color: #E3F2FD; color: #1976D2; border-color: #90CAF9; }
@@ -440,7 +450,8 @@
 </head>
 <body data-user="boy" data-theme="minimal">
 
-<div id="weather-sticky-badge" class="weather-badge" style="display:none;">
+<div id="weather-sticky-badge" class="weather-badge" style="display:none;" 
+     onclick="window.open('https://weathernews.jp/onebox/35.72301407452235/139.61712889160367/', '_blank')">
   <span class="material-symbols-rounded" id="badge-icon">sunny</span>
   <span class="badge-temp" id="badge-temp">--℃</span>
 </div>
@@ -472,7 +483,9 @@
     <button id="btn-partner-copy" class="btn-tool btn-partner-copy" onclick="copyToPartner()">
       <span class="material-symbols-rounded">content_copy</span> コピー
     </button>
-    <button class="btn-tool" onclick="showResetModal()">リセット</button>
+    <button class="btn-tool" onclick="showResetModal()">
+      <span class="material-symbols-rounded">restart_alt</span> リセット
+    </button>
   </div>
 
   <div class="tabs">
@@ -619,6 +632,7 @@
   let currentUser = 'boy';   
   let currentMeal = 'morning'; 
   let currentTheme = 'minimal'; 
+  // ★変更：データを配列で持つ（サブカテゴリ対応のため）
   let menuData = { morning: {}, dinner: {} }; 
   let nutritionMap = {}; 
   let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
@@ -791,7 +805,7 @@
       document.getElementById('weather-bar').style.display = 'flex';
 
       applyWeatherEffect(weatherCode);
-      updateWeatherBadge(weatherCode, maxTemp); // バッジ更新
+      updateWeatherBadge(weatherCode, maxTemp); 
 
     } catch (e) {
       console.log("Weather error: ", e);
@@ -820,14 +834,13 @@
       }
   }
 
-  // ★追加：バッジ更新ロジック
   function updateWeatherBadge(code, maxTemp) {
       const badge = document.getElementById('weather-sticky-badge');
       const icon = document.getElementById('badge-icon');
       const temp = document.getElementById('badge-temp');
       
-      badge.className = 'weather-badge'; // reset class
-      badge.style.display = 'flex'; // show
+      badge.className = 'weather-badge'; 
+      badge.style.display = 'flex'; 
 
       let iconName = 'help';
       let styleClass = '';
@@ -935,19 +948,23 @@
     menuData = { morning: {}, dinner: {} };
     nutritionMap = {};
     
+    // 初期化：サブカテゴリ対応のためオブジェクト配列を格納
     Object.values(CATEGORY_MAP).forEach(cat => { menuData.morning[cat] = []; menuData.dinner[cat] = []; });
     
     lines.forEach(line => {
       const parts = line.split(',');
       if (parts.length < 6) return;
-      const [m, c, item, y, r, g] = parts;
+      const [m, c, item, y, r, g, sub] = parts; // sub (7列目) を取得
       const catName = CATEGORY_MAP[c.trim()];
       
       if (!catName) return;
       const itemName = item.trim();
+      const subCat = sub ? sub.trim() : ''; // サブカテゴリがない場合は空文字
 
-      if (m.trim() === '1') menuData.morning[catName].push(itemName);
-      else if (m.trim() === '2') menuData.dinner[catName].push(itemName);
+      const dataObj = { name: itemName, sub: subCat };
+
+      if (m.trim() === '1') menuData.morning[catName].push(dataObj);
+      else if (m.trim() === '2') menuData.dinner[catName].push(dataObj);
 
       nutritionMap[itemName] = {
         yellow: parseInt(y) || 0,
@@ -957,6 +974,7 @@
     });
   }
 
+  // ★変更：サブカテゴリごとにグルーピングして表示するレンダリング関数
   function renderPage() {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${currentMeal}`).classList.add('active');
@@ -982,28 +1000,30 @@
       const card = document.createElement('div');
       card.className = 'list-card';
 
-      items.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'item-row';
-        const savedVal = checks[item] || 'none';
-        const radioName = `radio_${item}`;
-
-        row.innerHTML = `
-          <div class="item-name">${item}</div>
-          <div class="options">
-            <label><input type="radio" name="${radioName}" value="finish" 
-              ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData()">
-              <span class="radio-label">完食</span></label>
-            <label><input type="radio" name="${radioName}" value="left" 
-              ${savedVal === 'left' ? 'checked' : ''} onchange="saveData()">
-              <span class="radio-label">残し</span></label>
-            <label><input type="radio" name="${radioName}" value="none" 
-              ${savedVal === 'none' ? 'checked' : ''} onchange="saveData()">
-              <span class="radio-label">―</span></label>
-          </div>
-        `;
-        card.appendChild(row);
+      // 1. まずサブカテゴリ無し(その他)を表示
+      const noSubItems = items.filter(i => !i.sub);
+      noSubItems.forEach(itemObj => {
+          card.appendChild(createItemRow(itemObj.name, checks));
       });
+
+      // 2. サブカテゴリごとにグループ化して表示
+      // 存在するサブカテゴリのリストを作成（重複排除）
+      const subCategories = [...new Set(items.filter(i => i.sub).map(i => i.sub))];
+      
+      subCategories.forEach(subName => {
+          // サブカテゴリ見出し
+          const subHeader = document.createElement('div');
+          subHeader.className = 'subcategory-title';
+          subHeader.textContent = subName;
+          card.appendChild(subHeader);
+
+          // そのサブカテゴリのアイテムを表示
+          const subItems = items.filter(i => i.sub === subName);
+          subItems.forEach(itemObj => {
+              card.appendChild(createItemRow(itemObj.name, checks));
+          });
+      });
+
       container.appendChild(card);
     });
 
@@ -1011,6 +1031,30 @@
     const olInput = document.getElementById('other-left');
     if (document.activeElement !== ofInput) ofInput.value = savedData.otherFinish || '';
     if (document.activeElement !== olInput) olInput.value = savedData.otherLeft || '';
+  }
+
+  // 行作成のヘルパー関数
+  function createItemRow(itemName, checks) {
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      const savedVal = checks[itemName] || 'none';
+      const radioName = `radio_${itemName}`;
+
+      row.innerHTML = `
+        <div class="item-name">${itemName}</div>
+        <div class="options">
+          <label><input type="radio" name="${radioName}" value="finish" 
+            ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData()">
+            <span class="radio-label">完食</span></label>
+          <label><input type="radio" name="${radioName}" value="left" 
+            ${savedVal === 'left' ? 'checked' : ''} onchange="saveData()">
+            <span class="radio-label">残し</span></label>
+          <label><input type="radio" name="${radioName}" value="none" 
+            ${savedVal === 'none' ? 'checked' : ''} onchange="saveData()">
+            <span class="radio-label">―</span></label>
+        </div>
+      `;
+      return row;
   }
 
   function initChart() {
@@ -1216,7 +1260,9 @@
         
         if (!items) return;
 
-        items.forEach(itemName => {
+        items.forEach(itemObj => {
+            // itemObjはオブジェクトなので .name でアクセス
+            const itemName = itemObj.name;
             const val = checks[itemName];
             if (val === 'finish') {
                 resultLines.push(`【${catName}】${ICON_FINISH}${itemName}`);
