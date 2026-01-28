@@ -15,21 +15,25 @@
   /* --- 共通変数定義 --- */
   :root {
     --transition-speed: 0.3s;
-    /* よりモダンな落ち着いたアクセントカラー */
-    --accent-boy: #2D7FF9; /* 少し落ち着いた青 */
-    --accent-girl: #FF4F79; /* 少し落ち着いたピンク赤 */
     
-    /* デフォルトのフォント設定 */
+    /* ★変更：モダングレイッシュ（くすみ）カラー定義 */
+    --color-boy: #6086B0;   /* グレイッシュブルー */
+    --color-girl: #C07B8E;  /* ダスティピンク */
+    
+    --color-success: #699B7E; /* セージグリーン（完食） */
+    --color-danger: #C26D6D;  /* ミュートレッド（残し） */
+    --color-neutral: #E0E0E0; /* グレー（未選択） */
+    
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --letter-spacing: 0.03em; /* 少し広げて洗練させる */
+    --letter-spacing: 0.03em; 
   }
 
-  /* 1. Minimal (ミニマル) - シャープで清潔 */
+  /* 1. Minimal (ミニマル) */
   body[data-theme="minimal"] {
-    --bg-body: #F9F9FB; /* より明るいグレー */
+    --bg-body: #F9F9FB;
     --bg-card: #FFFFFF;
     --bg-header: rgba(255, 255, 255, 0.98);
-    --text-main: #2C2C2E; /* 真っ黒ではないオフブラック */
+    --text-main: #333333;
     --text-sub: #8E8E93;
     --border-color: #E5E5EA;
     
@@ -37,8 +41,8 @@
     --shadow-btn: 0 1px 2px rgba(0,0,0,0.05);
     --shadow-float: 0 4px 12px rgba(0,0,0,0.08);
     
-    --radius-card: 8px; /* 丸みを減らす */
-    --radius-btn: 6px;  /* 丸みを減らす */
+    --radius-card: 8px;
+    --radius-btn: 6px;
     --btn-bg-off: #F2F2F7;
     --btn-text-off: #8E8E93;
     
@@ -46,25 +50,24 @@
     --border-width: 1px;
   }
 
-  /* 2. Glass (グラス) - エレガントな透け感 */
+  /* 2. Glass (グラス) */
   body[data-theme="glass"] {
-    /* 落ち着いた高級感のあるグラデーション */
-    --bg-body: linear-gradient(135deg, #F0F4FF 0%, #F5F0FF 100%);
+    /* 背景を少し濃いめにして白文字を見やすく */
+    --bg-body: linear-gradient(135deg, #E3E9F2 0%, #E8E4F0 100%);
     --bg-card: rgba(255, 255, 255, 0.65);
     --bg-header: rgba(255, 255, 255, 0.75);
     --text-main: #3A3A3C;
     --text-sub: #7C7C82;
     --border-color: rgba(255, 255, 255, 0.8);
     
-    /* 境界線を光で表現 */
     --shadow-card: 
       0 4px 24px -1px rgba(0, 0, 0, 0.05),
       inset 0 0 0 1px rgba(255, 255, 255, 0.6);
     --shadow-btn: 0 2px 8px rgba(0,0,0,0.03), inset 0 0 0 1px rgba(255,255,255,0.4);
     --shadow-float: 0 8px 32px rgba(0,0,0,0.12);
     
-    --radius-card: 12px; /* 丸みを抑える */
-    --radius-btn: 10px;  /* カプセル型をやめる */
+    --radius-card: 12px;
+    --radius-btn: 10px;
     --btn-bg-off: rgba(255, 255, 255, 0.5);
     --btn-text-off: #7C7C82;
     
@@ -72,7 +75,7 @@
     --border-width: 0px;
   }
 
-  /* 3. Clay (クレイ) - マットな質感とソフトな立体感 */
+  /* 3. Clay (クレイ) */
   body[data-theme="clay"] {
     --bg-body: #EEF1F5;
     --bg-card: #EEF1F5;
@@ -81,14 +84,13 @@
     --text-sub: #A0AEC0;
     --border-color: transparent;
     
-    /* 影を少しシャープにしてモダンに */
     --shadow-card: 8px 8px 16px #D9E2EC, -8px -8px 16px #FFFFFF;
     --shadow-btn: 4px 4px 8px #D9E2EC, -4px -4px 8px #FFFFFF;
     --shadow-btn-active: inset 4px 4px 8px #D9E2EC, inset -4px -4px 8px #FFFFFF;
     --shadow-float: 12px 12px 24px #D9E2EC;
 
-    --radius-card: 16px; /* 丸みを減らす */
-    --radius-btn: 10px;  /* 丸みを減らす */
+    --radius-card: 16px;
+    --radius-btn: 10px;
     --btn-bg-off: #EEF1F5;
     --btn-text-off: #A0AEC0;
     
@@ -97,8 +99,11 @@
   }
 
   /* ユーザーカラー適用 */
-  body[data-user="boy"] { --accent: var(--accent-boy); --accent-light: #ECF4FF; }
-  body[data-user="girl"] { --accent: var(--accent-girl); --accent-light: #FFF0F3; }
+  body[data-user="boy"] { --accent: var(--color-boy); --accent-light: #F0F4F8; }
+  body[data-user="girl"] { --accent: var(--color-girl); --accent-light: #F9F0F2; }
+
+  /* Glassテーマ時の視認性調整 */
+  body[data-theme="glass"][data-user="boy"] { --accent: #5076A0; } /* 少し濃くする */
 
   /* 天気背景の上書き (Glassテーマ以外) */
   body:not([data-theme="glass"]).weather-sunny { background-color: #EBF7FF !important; }
@@ -116,14 +121,11 @@
     position: relative;
     min-height: 100vh;
     overflow-x: hidden;
-    -webkit-font-smoothing: antialiased; /* フォントを滑らかに */
+    -webkit-font-smoothing: antialiased;
   }
 
-  /* 絵文字のトーンを落とすフィルター */
-  .emoji-toned {
-      filter: grayscale(0.3) opacity(0.9);
-      display: inline-block;
-  }
+  /* 絵文字トーンダウン */
+  .emoji-toned { filter: grayscale(0.2) opacity(0.85); display: inline-block; }
 
   #weather-animation-container {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -131,7 +133,7 @@
   }
   .rain-drop {
       position: absolute; width: 3px; height: 20px; 
-      background: rgba(0, 122, 255, 0.5); bottom: 100%;
+      background: rgba(96, 134, 176, 0.6); bottom: 100%; /* 雨もグレイッシュブルーに */
       animation: fall linear infinite;
   }
   .snow-flake {
@@ -151,7 +153,6 @@
     min-height: 28px;
     transition: all var(--transition-speed);
   }
-  .weather-icon { font-size: 1.1rem; }
 
   .sticky-header-group {
     position: sticky; top: 0; z-index: 100;
@@ -163,13 +164,10 @@
   }
 
   .top-row {
-    display: flex; align-items: center; gap: 12px;
+    display: flex; align-items: center; gap: 10px;
     padding: 12px 15px; 
     border-bottom: var(--border-width) solid var(--border-color);
   }
-
-  /* ボタンの共通スタイル */
-  button { font-family: inherit; letter-spacing: inherit; }
 
   /* ユーザー切り替えボタン */
   .user-btn {
@@ -185,18 +183,22 @@
     touch-action: manipulation; white-space: nowrap; text-align: center;
     display: flex; justify-content: center; align-items: center; gap: 4px;
   }
-  /* アクティブ時 */
+  
+  /* アクティブ時：色はCSS変数(--accent)で制御 */
   body[data-user="boy"] .user-btn[data-target="boy"],
   body[data-user="girl"] .user-btn[data-target="girl"] { 
     background: var(--accent); color: white; border-color: transparent;
-    box-shadow: 0 2px 8px rgba(var(--accent), 0.3);
+    box-shadow: 0 2px 8px rgba(0,0,0, 0.15); /* 影をグレーにして馴染ませる */
   }
-  /* Glassテーマのアクティブボタンは少し透けさせる */
+  
+  /* Glassテーマのアクティブ調整 */
   body[data-theme="glass"][data-user="boy"] .user-btn[data-target="boy"],
   body[data-theme="glass"][data-user="girl"] .user-btn[data-target="girl"] {
-      background: rgba(var(--accent), 0.85);
-      backdrop-filter: blur(4px);
+      opacity: 1;
+      background: var(--accent); /* 透明度をなくして視認性確保 */
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
+  
   /* Clayテーマのアクティブ時 */
   body[data-theme="clay"][data-user="boy"] .user-btn[data-target="boy"],
   body[data-theme="clay"][data-user="girl"] .user-btn[data-target="girl"] {
@@ -218,8 +220,7 @@
   }
   .btn-tool:active { transform: scale(0.98); }
   .btn-partner-copy { color: var(--accent); }
-  /* Glassテーマでは少し背景をつける */
-  body[data-theme="glass"] .btn-tool { background: rgba(255,255,255,0.5); }
+  body[data-theme="glass"] .btn-partner-copy { background: rgba(255,255,255,0.7); }
 
   .tabs { display: flex; width: 100%; }
   .tab-btn {
@@ -231,13 +232,11 @@
   .tab-btn.active {
     border-bottom-color: var(--accent); color: var(--accent); 
   }
-  /* Minimal以外は背景色をうっすらつける */
   body:not([data-theme="minimal"]) .tab-btn.active {
       background: linear-gradient(to bottom, transparent, var(--accent-light));
   }
 
   .container { padding: 18px; }
-  /* カテゴリタイトル装飾の変更（丸ポチ→スタイリッシュな縦線） */
   .category-title {
     font-size: 0.85rem; color: var(--text-sub); margin: 24px 0 12px 2px; font-weight: 700;
     display: flex; align-items: center; text-transform: uppercase; letter-spacing: 0.05em;
@@ -248,6 +247,7 @@
     opacity: 0.8;
   }
 
+  /* リストカード */
   .list-card {
     background: var(--bg-card); 
     border-radius: var(--radius-card); 
@@ -257,35 +257,60 @@
     backdrop-filter: var(--backdrop); 
     border: var(--border-width) solid var(--border-color);
   }
+  
+  /* ★修正：レイアウト崩れ防止 */
   .item-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 15px 18px; border-bottom: 1px solid rgba(0,0,0,0.03);
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; /* 左右配置 */
+    gap: 8px; /* 要素間の隙間 */
+    padding: 15px 18px; 
+    border-bottom: 1px solid rgba(0,0,0,0.03);
   }
   .item-row:last-child { border-bottom: none; }
-  .item-name { font-weight: 600; font-size: 0.95rem; color: var(--text-main); }
+  
+  .item-name { 
+    font-weight: 600; font-size: 0.95rem; color: var(--text-main); 
+    flex: 1; /* 余ったスペースを全部使う */
+    min-width: 0; /* 文字が長くても縮まないようにするリセット */
+    word-break: break-all; /* 長すぎる単語は折り返す */
+    line-height: 1.4;
+  }
 
-  .options { display: flex; gap: 8px; }
+  .options { 
+    flex-shrink: 0; /* 絶対に縮まないようにする */
+    display: flex; 
+    gap: 6px; 
+  }
+
   .radio-label {
-    padding: 8px 14px; border-radius: 6px; /* 丸みを減らす */
+    padding: 8px 0; /* 横幅はwidthで指定するためpadding横は0 */
+    width: 48px;    /* 幅を固定して文字崩れを防ぐ */
+    border-radius: 6px;
     border: 1px solid transparent;
-    font-size: 0.75rem; cursor: pointer; background: var(--btn-bg-off); 
-    color: var(--btn-text-off); min-width: 42px; text-align: center;
+    font-size: 0.75rem; 
+    cursor: pointer; background: var(--btn-bg-off); 
+    color: var(--btn-text-off); 
+    text-align: center;
     transition: all 0.2s; font-weight: 600; box-shadow: var(--shadow-btn);
+    white-space: nowrap; /* 文字の折り返し禁止 */
+    display: flex; justify-content: center; align-items: center;
   }
   body[data-theme="minimal"] .radio-label { border-color: var(--border-color); background: #fff; box-shadow: none; }
 
   input[type="radio"] { display: none; }
-  /* 完了色の彩度を少し調整 */
+  
+  /* ★変更：グレイッシュカラー適用 */
   input[value="finish"]:checked + .radio-label { 
-    background-color: #32D74B; color: white; border-color: transparent; 
-    box-shadow: 0 2px 8px rgba(50, 215, 75, 0.25);
+    background-color: var(--color-success); color: white; border-color: transparent; 
+    box-shadow: 0 2px 8px rgba(105, 155, 126, 0.4);
   }
   input[value="left"]:checked + .radio-label { 
-    background-color: #FF453A; color: white; border-color: transparent;
-    box-shadow: 0 2px 8px rgba(255, 69, 58, 0.25);
+    background-color: var(--color-danger); color: white; border-color: transparent;
+    box-shadow: 0 2px 8px rgba(194, 109, 109, 0.4);
   }
   input[value="none"]:checked + .radio-label { 
-    background-color: #E5E5EA; color: #999; box-shadow: none;
+    background-color: var(--color-neutral); color: #999; box-shadow: none;
   }
   body[data-theme="clay"] input:checked + .radio-label {
     transform: scale(0.97); box-shadow: inset 2px 2px 5px rgba(0,0,0,0.1);
@@ -329,7 +354,6 @@
     position: relative; overflow: hidden;
     border: var(--border-width) solid var(--border-color);
   }
-  /* Minimalテーマだけボーダーで強調 */
   body[data-theme="minimal"] .score-area { border: 2px solid var(--accent); box-shadow: none; }
 
   body[data-theme="glass"] .score-area::before {
@@ -371,12 +395,12 @@
   .calc-row.is-cheapest .calc-input { 
     border-color: var(--accent); background-color: var(--accent-light);
   }
-  .calc-row.is-cheapest .calc-result { color: #FF453A; font-size: 1.1rem; }
+  .calc-row.is-cheapest .calc-result { color: var(--color-danger); font-size: 1.1rem; }
 
   .theme-switcher-area { margin: 40px 18px 120px 18px; text-align: center; }
   .theme-title { font-size:0.8rem; color:var(--text-sub); margin-bottom:12px; font-weight:700; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .theme-btn-group {
-    display: inline-flex; background: var(--bg-card); border-radius: 12px; /* 丸みを減らす */
+    display: inline-flex; background: var(--bg-card); border-radius: 12px;
     padding: 4px; box-shadow: var(--shadow-card); backdrop-filter: var(--backdrop);
     border: var(--border-width) solid var(--border-color);
   }
@@ -386,7 +410,7 @@
     font-family: inherit;
   }
   .theme-btn.active {
-    background: var(--accent); color: white; box-shadow: 0 2px 8px rgba(var(--accent), 0.3);
+    background: var(--accent); color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
   body[data-theme="minimal"] .theme-btn.active { background: var(--text-main); color: white; box-shadow: none; }
 
@@ -397,11 +421,11 @@
     z-index: 200; box-shadow: 0 -4px 20px rgba(0,0,0,0.04);
   }
   .btn-copy {
-    width: 100%; border: none; padding: 14px; border-radius: 12px; /* 丸みを減らす */
+    width: 100%; border: none; padding: 14px; border-radius: 12px;
     font-size: 1rem; font-weight: 700; cursor: pointer;
     background-color: var(--accent); color: white; 
     transition: background 0.3s, transform 0.1s;
-    box-shadow: 0 4px 12px rgba(var(--accent), 0.3);
+    box-shadow: 0 4px 12px rgba(0,0,0, 0.15);
     font-family: inherit; letter-spacing: 0.05em;
   }
   .btn-copy:active { transform: scale(0.98); }
@@ -424,7 +448,7 @@
     padding: 12px; border: 1px solid transparent; border-radius: 8px; font-size: 0.95rem; cursor: pointer; font-weight: 600; transition: 0.2s; font-family: inherit;
   }
   .btn-reset-one { background: var(--btn-bg-off); color: var(--text-main); border-color: var(--border-color); }
-  .btn-reset-all { background: rgba(255, 59, 48, 0.1); color: #FF453A; }
+  .btn-reset-all { background: rgba(194, 109, 109, 0.1); color: var(--color-danger); }
   .btn-cancel { background: transparent; color: var(--text-sub); margin-top: 5px; }
 
   .nutrition-list { text-align: left; font-size: 0.9rem; line-height: 1.7; color: var(--text-main); }
@@ -449,8 +473,8 @@
     <span id="weather-pop"></span>%
   </span>
   <span style="margin-left:10px;">
-    <span style="color:#FF453A;" id="temp-max">--</span>℃ / 
-    <span style="color:#007AFF;" id="temp-min">--</span>℃
+    <span style="color:var(--color-danger);" id="temp-max">--</span>℃ / 
+    <span style="color:var(--color-boy);" id="temp-min">--</span>℃
   </span>
 </div>
 
@@ -488,7 +512,7 @@
     <input type="text" id="other-finish" class="other-input" placeholder="例：ヨーグルト" onchange="saveData()">
   </div>
   <div class="other-box">
-    <label class="other-label" style="color: #FF453A;">その他（残し）</label>
+    <label class="other-label" style="color: var(--color-danger);">その他（残し）</label>
     <input type="text" id="other-left" class="other-input" placeholder="例：野菜" onchange="saveData()">
   </div>
 </div>
@@ -557,15 +581,15 @@
     <div class="modal-title">栄養素のヒミツ</div>
     <div class="nutrition-list">
       <div class="nutrition-item">
-        <span class="nut-label" style="color:#F5A623"><span class="emoji-toned">💛</span> 黄（エネルギー）</span>
+        <span class="nut-label" style="color:#D4A056"><span class="emoji-toned">💛</span> 黄（エネルギー）</span>
         <span class="nut-desc">炭水化物、油、砂糖<br>（パン、ご飯、ポテト、甘栗など）</span>
       </div>
       <div class="nutrition-item">
-        <span class="nut-label" style="color:#FF3B30"><span class="emoji-toned">❤️</span> 赤（からだを作る）</span>
+        <span class="nut-label" style="color:#C26D6D"><span class="emoji-toned">❤️</span> 赤（からだを作る）</span>
         <span class="nut-desc">タンパク質、カルシウム<br>（肉、魚、卵、牛乳、豆、チーズ）</span>
       </div>
       <div class="nutrition-item">
-        <span class="nut-label" style="color:#34C759"><span class="emoji-toned">💚</span> 緑（調子を整える）</span>
+        <span class="nut-label" style="color:#699B7E"><span class="emoji-toned">💚</span> 緑（調子を整える）</span>
         <span class="nut-desc">ビタミン、ミネラル、食物繊維<br>（野菜、果物）</span>
       </div>
     </div>
@@ -620,7 +644,7 @@
     const lastUser = localStorage.getItem('fc_last_user');
     if(lastUser) currentUser = lastUser;
 
-    // テーマ読み込み（安全装置付き）
+    // テーマ読み込み
     const lastTheme = localStorage.getItem('fc_theme');
     if(lastTheme) {
         if (['minimal', 'glass', 'clay'].includes(lastTheme)) {
@@ -989,7 +1013,7 @@
           borderColor: 'rgba(0, 122, 255, 1)',
           borderWidth: 3,
           pointRadius: 5,
-          pointBackgroundColor: ['#FFCC00', '#FF3B30', '#34C759'],
+          pointBackgroundColor: ['#D4A056', '#C26D6D', '#699B7E'], /* グラフ色もくすみカラーに */
           pointBorderColor: '#fff',
           pointHoverRadius: 7,
         }]
@@ -1038,8 +1062,8 @@
     // テーマに合わせた色調整（CSS変数から取得して適用）
     const rootStyles = getComputedStyle(document.documentElement);
     const accentColorHex = currentUser === 'boy' 
-       ? rootStyles.getPropertyValue('--accent-boy').trim()
-       : rootStyles.getPropertyValue('--accent-girl').trim();
+       ? rootStyles.getPropertyValue('--color-boy').trim()
+       : rootStyles.getPropertyValue('--color-girl').trim();
     
     // HEX to RGB 変換
     let r=0, g=0, b=0;
@@ -1054,7 +1078,7 @@
     myChart.data.datasets[0].borderColor = `rgba(${r}, ${g}, ${b}, 1)`;
     
     // チャートのグリッド色などをテーマに合わせて微調整
-    const isDark = currentTheme === 'glass' && window.matchMedia('(prefers-color-scheme: dark)').matches; // 簡易的なダーク判定
+    const isDark = currentTheme === 'glass' && window.matchMedia('(prefers-color-scheme: dark)').matches; 
     const gridColor = isDark ? 'rgba(255,255,255,0.1)' : '#E5E5EA';
     const labelColor = isDark ? 'rgba(255,255,255,0.6)' : '#8E8E93';
 
