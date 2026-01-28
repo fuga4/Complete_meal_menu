@@ -234,7 +234,6 @@
     background: var(--accent); margin-right: 8px; border-radius: 2px; opacity: 0.8;
   }
 
-  /* ★追加：サブカテゴリ見出しのスタイル */
   .subcategory-title {
     font-size: 0.75rem; color: var(--text-sub); 
     margin: 10px 15px 5px 15px; padding-top: 5px;
@@ -632,7 +631,6 @@
   let currentUser = 'boy';   
   let currentMeal = 'morning'; 
   let currentTheme = 'minimal'; 
-  // ★変更：データを配列で持つ（サブカテゴリ対応のため）
   let menuData = { morning: {}, dinner: {} }; 
   let nutritionMap = {}; 
   let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
@@ -974,7 +972,7 @@
     });
   }
 
-  // ★変更：サブカテゴリごとにグルーピングして表示するレンダリング関数
+  // ★変更：サブカテゴリごとに指定順でグルーピング表示
   function renderPage() {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${currentMeal}`).classList.add('active');
@@ -1008,7 +1006,17 @@
 
       // 2. サブカテゴリごとにグループ化して表示
       // 存在するサブカテゴリのリストを作成（重複排除）
-      const subCategories = [...new Set(items.filter(i => i.sub).map(i => i.sub))];
+      let subCategories = [...new Set(items.filter(i => i.sub).map(i => i.sub))];
+      
+      // ★追加：指定順に並び替え
+      const ORDER_LIST = ["豆・卵・乳", "芋・栗・南瓜", "おかず・粉もの", "野菜・きのこ"];
+      subCategories.sort((a, b) => {
+          let idxA = ORDER_LIST.indexOf(a);
+          let idxB = ORDER_LIST.indexOf(b);
+          if (idxA === -1) idxA = 999;
+          if (idxB === -1) idxB = 999;
+          return idxA - idxB;
+      });
       
       subCategories.forEach(subName => {
           // サブカテゴリ見出し
