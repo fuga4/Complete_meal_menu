@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+　<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -25,24 +25,31 @@
     transition: background-color 0.8s ease;
     position: relative;
     min-height: 100vh;
+    overflow-x: hidden;
   }
 
-  /* 天気ごとの背景色（静的） */
-  body.weather-sunny { background-color: #e3f2fd !important; }
-  body.weather-cloudy { background-color: #cfd8dc !important; }
+  /* ★変更：天気ごとの背景色 */
+  body.weather-sunny { background-color: #e3f2fd !important; } /* 晴れ：明るい空色 */
+  body.weather-cloudy { background-color: #90a4ae !important; } /* ★変更：曇り：かなり暗いグレー */
 
   /* 天気アニメーション用のコンテナ */
   #weather-animation-container {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       pointer-events: none; z-index: -1; overflow: hidden;
   }
+
+  /* ★変更：雨粒を大きく */
   .rain-drop {
-      position: absolute; width: 2px; height: 15px;
+      position: absolute; 
+      width: 4px; height: 25px; /* 太く長く */
       background: rgba(0, 122, 255, 0.6); bottom: 100%;
       animation: fall linear infinite;
   }
+
+  /* ★変更：雪を大きく */
   .snow-flake {
-      position: absolute; width: 8px; height: 8px;
+      position: absolute; 
+      width: 15px; height: 15px; /* 大きく */
       background: white; border-radius: 50%;
       box-shadow: 0 0 5px rgba(255,255,255,0.8); bottom: 100%;
       animation: fall linear infinite;
@@ -58,7 +65,7 @@
   }
   .weather-icon { font-size: 1.2rem; margin-right: 2px; }
 
-  /* ★追加：ヘッダー群をまとめて固定するためのコンテナ */
+  /* ヘッダー群をまとめて固定 */
   .sticky-header-group {
     position: sticky;
     top: 0;
@@ -68,7 +75,6 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
   }
 
-  /* ユーザー切り替え（個別固定設定を削除し、親コンテナに任せる） */
   .user-switcher {
     display: flex; gap: 10px; padding: 10px 15px; 
     background: transparent;
@@ -78,14 +84,12 @@
     flex: 1; padding: 8px; border-radius: 20px; border: 2px solid transparent;
     font-weight: bold; background: #f0f0f0; color: #999; cursor: pointer;
     font-size: 0.9rem; transition: 0.2s;
+    touch-action: manipulation; 
   }
   body[data-user="boy"] .user-btn[data-target="boy"] { background: #007AFF; color: white; border-color: #0056b3; }
   body[data-user="girl"] .user-btn[data-target="girl"] { background: #FF2D55; color: white; border-color: #d6002a; }
 
-  /* サブヘッダー（個別固定設定を削除し、親コンテナに任せる） */
-  .sub-header {
-    background: transparent;
-  }
+  .sub-header { background: transparent; }
   .tools-bar {
     display: flex; justify-content: space-between; align-items: center; 
     padding: 8px 15px; border-bottom: 1px solid #f5f5f5;
@@ -201,7 +205,6 @@
   .calc-result {
       text-align: center; font-size: 0.9rem; color: #666; font-weight: bold;
   }
-  /* お得ハイライト */
   .calc-row.is-cheapest .calc-input { border-color: var(--theme-color); background-color: #f0f8ff; }
   .calc-row.is-cheapest .calc-result { color: #ff3b30; font-size: 1.1rem; }
 
@@ -277,6 +280,7 @@
     </div>
   </div>
 </div>
+
 <div class="container" id="list-container">
   <div style="text-align:center; margin-top:50px; color:#999;">読み込み中...</div>
 </div>
@@ -397,6 +401,10 @@
   let myChart = null;
   let weatherAnimInterval = null;
 
+  // スワイプ用変数
+  let touchStartX = 0;
+  let touchStartY = 0;
+
   function initApp() {
     const lastUser = localStorage.getItem('fc_last_user');
     if(lastUser) currentUser = lastUser;
@@ -414,7 +422,38 @@
       setupRealtimeListener(); 
       getWeather(); 
       initCalc();
+      setupSwipeListener(); 
     });
+  }
+
+  // スワイプ判定ロジック
+  function setupSwipeListener() {
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        handleSwipe(touchStartX, touchStartY, touchEndX, touchEndY);
+    }, { passive: true });
+  }
+
+  function handleSwipe(startX, startY, endX, endY) {
+      const diffX = endX - startX;
+      const diffY = endY - startY;
+      const threshold = 50; 
+
+      if (Math.abs(diffY) > Math.abs(diffX)) return;
+
+      if (Math.abs(diffX) > threshold) {
+          if (diffX > 0) {
+              if (currentUser === 'girl') switchUser('boy');
+          } else {
+              if (currentUser === 'boy') switchUser('girl');
+          }
+      }
   }
 
   // 計算機機能
