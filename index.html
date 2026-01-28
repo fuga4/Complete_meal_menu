@@ -12,25 +12,77 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-  :root { --primary: #007AFF; --bg: #F2F2F7; --danger: #FF3B30; --success: #34C759; }
-  
-  body[data-user="boy"] { --theme-color: #007AFF; --theme-light: #E0F0FF; }
-  body[data-user="girl"] { --theme-color: #FF2D55; --theme-light: #FFE0E6; }
+  /* --- テーマ変数定義 --- */
+  :root {
+    /* デフォルト（シンプル） */
+    --primary: #007AFF;
+    --text-main: #333;
+    --text-sub: #666;
+    --bg-base: #F2F2F7;
+    --bg-card: #ffffff;
+    --bg-header: rgba(255, 255, 255, 0.95);
+    --border-color: #eee;
+    --radius-main: 12px;
+    --radius-btn: 20px;
+    
+    /* 天気背景色（デフォルト） */
+    --bg-sunny: #e3f2fd;
+    --bg-cloudy: #90a4ae;
+  }
 
+  /* ポップテーマ */
+  body[data-theme="pop"] {
+    --primary: #FF9500;
+    --text-main: #4a4a4a;
+    --bg-base: #fffbe6;
+    --bg-card: #ffffff;
+    --bg-header: rgba(255, 250, 240, 0.95);
+    --border-color: #ffe0b2;
+    --radius-main: 24px; /* 角丸を強く */
+    --radius-btn: 30px;
+    
+    --bg-sunny: #fff9c4; /* 黄色っぽい晴れ */
+    --bg-cloudy: #cfd8dc;
+  }
+
+  /* ダークテーマ */
+  body[data-theme="dark"] {
+    --primary: #0A84FF;
+    --text-main: #f0f0f0;
+    --text-sub: #aaaaaa;
+    --bg-base: #1c1c1e;
+    --bg-card: #2c2c2e;
+    --bg-header: rgba(44, 44, 46, 0.95);
+    --border-color: #3a3a3c;
+    --radius-main: 12px;
+    --radius-btn: 20px;
+
+    --bg-sunny: #1a237e; /* 濃い青 */
+    --bg-cloudy: #37474f; /* 濃いグレー */
+  }
+
+  /* 性別カラー（テーマ共通だがダーク時は調整） */
+  body[data-user="boy"] { --theme-accent: #007AFF; --theme-light: #E0F0FF; }
+  body[data-user="girl"] { --theme-accent: #FF2D55; --theme-light: #FFE0E6; }
+  
+  body[data-theme="dark"][data-user="boy"] { --theme-accent: #409CFF; --theme-light: #102a44; }
+  body[data-theme="dark"][data-user="girl"] { --theme-accent: #FF6482; --theme-light: #44101a; }
+
+  /* --- ベーススタイル --- */
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-    background-color: var(--bg); 
-    margin: 0; padding: 0; color: #333;
+    background-color: var(--bg-base); 
+    margin: 0; padding: 0; color: var(--text-main);
     padding-bottom: 220px; 
-    transition: background-color 0.8s ease;
+    transition: background-color 0.5s ease, color 0.5s ease;
     position: relative;
     min-height: 100vh;
     overflow-x: hidden;
   }
 
-  /* 天気ごとの背景色 */
-  body.weather-sunny { background-color: #e3f2fd !important; } 
-  body.weather-cloudy { background-color: #90a4ae !important; } 
+  /* 天気背景（変数を使用） */
+  body.weather-sunny { background-color: var(--bg-sunny) !important; }
+  body.weather-cloudy { background-color: var(--bg-cloudy) !important; }
 
   #weather-animation-container {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -42,7 +94,6 @@
       background: rgba(0, 122, 255, 0.6); bottom: 100%;
       animation: fall linear infinite;
   }
-
   .snow-flake {
       position: absolute; width: 15px; height: 15px; 
       background: white; border-radius: 50%;
@@ -52,10 +103,10 @@
   @keyframes fall { to { transform: translateY(110vh); } }
 
   .weather-bar {
-    background: rgba(255, 255, 255, 0.9);
-    padding: 8px 15px; font-size: 0.85rem; color: #555;
+    background: var(--bg-header);
+    padding: 8px 15px; font-size: 0.85rem; color: var(--text-sub);
     display: flex; justify-content: center; align-items: center; gap: 10px;
-    border-bottom: 1px solid #ddd; font-weight: bold;
+    border-bottom: 1px solid var(--border-color); font-weight: bold;
     min-height: 24px;
   }
   .weather-icon { font-size: 1.2rem; margin-right: 2px; }
@@ -65,126 +116,104 @@
     position: sticky;
     top: 0;
     z-index: 100;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--bg-header);
     backdrop-filter: blur(10px);
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: background-color 0.5s ease;
   }
 
-  /* ★変更：1行にまとめるスタイル */
   .top-row {
-    display: flex;
-    align-items: center;
-    gap: 6px; /* ボタン間の隙間を少し詰める */
-    padding: 8px 10px;
-    border-bottom: 1px solid #f5f5f5;
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 10px; border-bottom: 1px solid var(--border-color);
   }
 
-  /* ユーザー切り替えボタン（少し小さくして横並びに対応） */
   .user-btn {
-    flex: 2; /* 優先的に幅を取る */
-    padding: 8px 2px;
-    border-radius: 18px; 
+    flex: 2; padding: 8px 2px;
+    border-radius: var(--radius-btn); 
     border: 2px solid transparent;
     font-weight: bold; 
-    background: #f0f0f0; 
-    color: #999; 
-    cursor: pointer;
-    font-size: 0.85rem; 
-    transition: 0.2s;
-    touch-action: manipulation; 
-    white-space: nowrap; /* 折り返し禁止 */
-    text-align: center;
+    background: var(--border-color); /* 薄いグレーの代わり */
+    color: var(--text-sub); 
+    cursor: pointer; font-size: 0.85rem; transition: 0.2s;
+    touch-action: manipulation; white-space: nowrap; text-align: center;
   }
-  body[data-user="boy"] .user-btn[data-target="boy"] { background: #007AFF; color: white; border-color: #0056b3; }
-  body[data-user="girl"] .user-btn[data-target="girl"] { background: #FF2D55; color: white; border-color: #d6002a; }
+  body[data-user="boy"] .user-btn[data-target="boy"] { background: var(--theme-accent); color: white; border-color: var(--theme-accent); }
+  body[data-user="girl"] .user-btn[data-target="girl"] { background: var(--theme-accent); color: white; border-color: var(--theme-accent); }
 
-  /* ツールボタン（コピー・リセット） */
   .btn-tool {
-    flex: 1; /* 必要最低限の幅 */
-    font-size: 0.75rem; /* 文字サイズ調整 */
-    background: #fff; 
+    flex: 1; font-size: 0.75rem; 
+    background: var(--bg-card); 
     border: 1px solid #ccc;
-    padding: 6px 4px; /* パディング調整 */
-    border-radius: 15px; 
-    cursor: pointer; 
-    color: #555;
-    white-space: nowrap;
-    text-align: center;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 32px; /* 高さ合わせ */
-    box-sizing: border-box;
+    padding: 6px 4px; border-radius: 15px; cursor: pointer; color: var(--text-sub);
+    white-space: nowrap; text-align: center;
+    display: flex; justify-content: center; align-items: center;
+    height: 32px; box-sizing: border-box;
   }
   .btn-partner-copy {
-    border-color: var(--theme-color); 
-    color: var(--theme-color); 
-    font-weight: bold;
-    gap: 2px;
+    border-color: var(--theme-accent); color: var(--theme-accent); font-weight: bold; gap: 2px;
   }
   .btn-partner-copy::before { content: '📋'; font-size: 0.9rem; }
 
   .tabs { display: flex; width: 100%; }
   .tab-btn {
     flex: 1; padding: 10px; text-align: center; font-weight: bold; cursor: pointer;
-    border-bottom: 3px solid transparent; color: #999;
-    font-size: 0.9rem;
+    border-bottom: 3px solid transparent; color: var(--text-sub); font-size: 0.9rem;
   }
   .tab-btn.active {
-    border-bottom-color: var(--theme-color); color: var(--theme-color); background: var(--theme-light);
+    border-bottom-color: var(--theme-accent); color: var(--theme-accent); background: var(--theme-light);
   }
 
   .container { padding: 15px; }
   .category-title {
-    font-size: 0.9rem; color: #666; margin: 20px 0 8px 5px; font-weight: bold;
+    font-size: 0.9rem; color: var(--text-sub); margin: 20px 0 8px 5px; font-weight: bold;
     display: flex; align-items: center;
   }
   .category-title::before {
     content: ''; display: inline-block; width: 4px; height: 1em;
-    background: var(--theme-color); margin-right: 6px; border-radius: 2px;
+    background: var(--theme-accent); margin-right: 6px; border-radius: 2px;
   }
 
   .list-card {
-    background: white; border-radius: 12px; overflow: hidden;
+    background: var(--bg-card); border-radius: var(--radius-main); overflow: hidden;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05); margin-bottom: 15px;
+    transition: background-color 0.5s ease;
   }
   .item-row {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 15px; border-bottom: 1px solid #eee;
+    padding: 12px 15px; border-bottom: 1px solid var(--border-color);
   }
   .item-row:last-child { border-bottom: none; }
-  .item-name { font-weight: 500; font-size: 1rem; }
+  .item-name { font-weight: 500; font-size: 1rem; color: var(--text-main); }
 
   .options { display: flex; gap: 5px; }
   .radio-label {
-    padding: 8px 10px; border-radius: 8px; border: 1px solid #ddd;
-    font-size: 0.8rem; cursor: pointer; background: #fff; color: #666;
+    padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color);
+    font-size: 0.8rem; cursor: pointer; background: var(--bg-card); color: var(--text-sub);
     min-width: 35px; text-align: center;
   }
   input[type="radio"] { display: none; }
   
-  input[value="finish"]:checked + .radio-label { background-color: var(--success); color: white; border-color: var(--success); }
-  input[value="left"]:checked + .radio-label { background-color: var(--danger); color: white; border-color: var(--danger); }
-  input[value="none"]:checked + .radio-label { background-color: #eee; color: #aaa; border-color: #eee; }
+  input[value="finish"]:checked + .radio-label { background-color: #34C759; color: white; border-color: #34C759; }
+  input[value="left"]:checked + .radio-label { background-color: #FF3B30; color: white; border-color: #FF3B30; }
+  input[value="none"]:checked + .radio-label { background-color: var(--border-color); color: #aaa; border-color: var(--border-color); }
 
-  .other-box { background: white; padding: 15px; border-radius: 12px; margin-bottom: 10px; }
-  .other-label { font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block; }
+  .other-box { background: var(--bg-card); padding: 15px; border-radius: var(--radius-main); margin-bottom: 10px; }
+  .other-label { font-size: 0.85rem; font-weight: bold; margin-bottom: 5px; display: block; color: var(--text-main); }
   .other-input {
-    width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px;
+    width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px;
     font-size: 1rem; box-sizing: border-box; -webkit-appearance: none;
+    background: var(--bg-card); color: var(--text-main);
   }
 
   .chart-container {
-    margin: 10px 15px 15px 15px; background: white; border-radius: 12px;
+    margin: 10px 15px 15px 15px; background: var(--bg-card); border-radius: var(--radius-main);
     padding: 10px 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     height: 350px; position: relative;
     display: flex; flex-direction: column; align-items: center;
     cursor: pointer;
   }
-  .chart-container:active { background-color: #fafafa; }
-
   .chart-title { 
-    text-align: center; font-size: 0.9rem; color: #666; margin-bottom: 0px; 
+    text-align: center; font-size: 0.9rem; color: var(--text-sub); margin-bottom: 0px; 
     font-weight: bold; width:100%; display: flex; justify-content: center; align-items: center; gap:5px;
   }
   .chart-title::after {
@@ -194,53 +223,82 @@
   }
 
   .score-area {
-    margin: 0 15px 15px 15px; background: white; border-radius: 12px;
+    margin: 0 15px 15px 15px; background: var(--bg-card); border-radius: var(--radius-main);
     padding: 15px; text-align: center;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    border: 2px solid var(--theme-color);
+    border: 2px solid var(--theme-accent);
   }
-  .score-label { font-size: 0.9rem; color: #666; font-weight: bold; }
-  .score-value { font-size: 2.2rem; font-weight: 800; color: var(--theme-color); line-height: 1.2; }
-  .score-comment { font-size: 1rem; color: #333; margin-top: 5px; font-weight: bold; }
+  .score-label { font-size: 0.9rem; color: var(--text-sub); font-weight: bold; }
+  .score-value { font-size: 2.2rem; font-weight: 800; color: var(--theme-accent); line-height: 1.2; }
+  .score-comment { font-size: 1rem; color: var(--text-main); margin-top: 5px; font-weight: bold; }
 
   .calc-area {
-    margin: 30px 15px 15px 15px; background: white; border-radius: 12px;
+    margin: 30px 15px 15px 15px; background: var(--bg-card); border-radius: var(--radius-main);
     padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   }
   .calc-header {
       display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px;
+      margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;
   }
-  .calc-title { font-weight: bold; color: #333; font-size: 1rem; }
+  .calc-title { font-weight: bold; color: var(--text-main); font-size: 1rem; }
   .calc-reset-btn {
-      font-size: 0.8rem; color: #999; background: #eee; border: none;
+      font-size: 0.8rem; color: var(--text-sub); background: var(--border-color); border: none;
       padding: 4px 10px; border-radius: 10px; cursor: pointer;
   }
   .calc-table { width: 100%; border-collapse: collapse; }
   .calc-row td { padding: 5px 2px; }
   .calc-input {
       width: 100%; padding: 8px; box-sizing: border-box;
-      border: 1px solid #ddd; border-radius: 6px;
+      border: 1px solid var(--border-color); border-radius: 6px;
       font-size: 1rem; text-align: center; -webkit-appearance: none;
+      background: var(--bg-card); color: var(--text-main);
   }
   .calc-result {
-      text-align: center; font-size: 0.9rem; color: #666; font-weight: bold;
+      text-align: center; font-size: 0.9rem; color: var(--text-sub); font-weight: bold;
   }
-  .calc-row.is-cheapest .calc-input { border-color: var(--theme-color); background-color: #f0f8ff; }
+  .calc-row.is-cheapest .calc-input { border-color: var(--theme-accent); background-color: var(--theme-light); }
   .calc-row.is-cheapest .calc-result { color: #ff3b30; font-size: 1.1rem; }
+
+  /* テーマ切り替えUIエリア */
+  .theme-switcher-area {
+    margin: 20px 15px 80px 15px;
+    text-align: center;
+  }
+  .theme-btn-group {
+    display: inline-flex;
+    background: var(--bg-card);
+    border-radius: 20px;
+    padding: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  .theme-btn {
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 16px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: var(--text-sub);
+  }
+  .theme-btn.active {
+    background: var(--theme-accent);
+    color: white;
+  }
 
   .fixed-footer {
     position: fixed; bottom: 0; left: 0; width: 100%;
-    background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
+    background: var(--bg-header); backdrop-filter: blur(10px);
     padding: 15px 20px; box-sizing: border-box; border-top: 1px solid #ccc;
     z-index: 200;
   }
   .btn-copy {
     width: 100%; border: none; padding: 14px; border-radius: 12px;
     font-size: 1.1rem; font-weight: bold; cursor: pointer;
-    background-color: var(--theme-color); color: white; transition: background 0.3s;
+    background-color: var(--theme-accent); color: white; transition: background 0.3s;
   }
 
+  /* モーダル */
   .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.5); z-index: 999; display: none;
@@ -248,28 +306,29 @@
     animation: fadeIn 0.2s ease;
   }
   .modal-content {
-    background: white; width: 85%; max-width: 320px; border-radius: 16px;
+    background: var(--bg-card); width: 85%; max-width: 320px; border-radius: 16px;
     padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); text-align: center;
+    color: var(--text-main);
   }
   .modal-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; }
   .modal-btn-group { display: flex; flex-direction: column; gap: 10px; }
   .modal-btn {
     padding: 12px; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; font-weight: bold;
   }
-  .btn-reset-one { background: #f0f0f0; color: #333; }
+  .btn-reset-one { background: var(--border-color); color: var(--text-main); }
   .btn-reset-all { background: #ffe0e0; color: #FF3B30; }
-  .btn-cancel { background: white; color: #007AFF; margin-top: 5px; }
+  .btn-cancel { background: var(--bg-card); color: var(--theme-accent); margin-top: 5px; }
 
-  .nutrition-list { text-align: left; font-size: 0.9rem; line-height: 1.5; }
+  .nutrition-list { text-align: left; font-size: 0.9rem; line-height: 1.5; color: var(--text-main); }
   .nutrition-item { margin-bottom: 15px; }
   .nut-label { font-weight: bold; display: block; margin-bottom: 2px; }
-  .nut-desc { color: #666; font-size: 0.85rem; }
+  .nut-desc { color: var(--text-sub); font-size: 0.85rem; }
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 </style>
 </head>
-<body data-user="boy">
+<body data-user="boy" data-theme="simple">
 
 <div id="weather-animation-container"></div>
 
@@ -277,7 +336,7 @@
   <span id="weather-date-label"></span>
   <span id="weather-icon" class="weather-icon"></span>
   <span id="weather-text"></span>
-  <span style="margin-left:8px; color:#007AFF;">☂️<span id="weather-pop"></span>%</span>
+  <span style="margin-left:8px; color:var(--theme-accent);">☂️<span id="weather-pop"></span>%</span>
   <span style="margin-left:8px;">
     <span style="color:#FF3B30;" id="temp-max">--</span>℃ / 
     <span style="color:#007AFF;" id="temp-min">--</span>℃
@@ -334,14 +393,22 @@
   <table class="calc-table">
       <thead>
           <tr>
-              <th style="font-size:0.8rem; color:#666;">量 (g/個)</th>
-              <th style="font-size:0.8rem; color:#666;">価格 (円)</th>
-              <th style="font-size:0.8rem; color:#666;">単価</th>
+              <th style="font-size:0.8rem; color:var(--text-sub);">量 (g/個)</th>
+              <th style="font-size:0.8rem; color:var(--text-sub);">価格 (円)</th>
+              <th style="font-size:0.8rem; color:var(--text-sub);">単価</th>
           </tr>
       </thead>
       <tbody id="calc-body">
           </tbody>
   </table>
+</div>
+
+<div class="theme-switcher-area">
+  <div class="theme-btn-group">
+    <button class="theme-btn active" id="theme-btn-simple" onclick="switchTheme('simple')">標準</button>
+    <button class="theme-btn" id="theme-btn-pop" onclick="switchTheme('pop')">ポップ</button>
+    <button class="theme-btn" id="theme-btn-dark" onclick="switchTheme('dark')">ダーク</button>
+  </div>
 </div>
 
 <div class="fixed-footer">
@@ -412,11 +479,13 @@
   
   let currentUser = 'boy';   
   let currentMeal = 'morning'; 
+  let currentTheme = 'simple'; // デフォルトテーマ
   let menuData = { morning: {}, dinner: {} }; 
   let nutritionMap = {}; 
   let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
   let myChart = null;
   let weatherAnimInterval = null;
+  let weatherCode = null; // 天気コード保持用
 
   // スワイプ用変数
   let touchStartX = 0;
@@ -426,6 +495,10 @@
     const lastUser = localStorage.getItem('fc_last_user');
     if(lastUser) currentUser = lastUser;
 
+    // テーマ読み込み
+    const lastTheme = localStorage.getItem('fc_theme');
+    if(lastTheme) switchTheme(lastTheme);
+
     const currentHour = new Date().getHours();
     if (currentHour >= 12) {
         currentMeal = 'dinner';
@@ -433,7 +506,7 @@
         currentMeal = 'morning';
     }
 
-    updateTheme();
+    updateTheme(); // ユーザー色反映
     loadMenuCsv().then(() => {
       initChart();
       setupRealtimeListener(); 
@@ -441,6 +514,27 @@
       initCalc();
       setupSwipeListener(); 
     });
+  }
+
+  // ★追加：テーマ切り替え関数
+  window.switchTheme = function(themeName) {
+      currentTheme = themeName;
+      localStorage.setItem('fc_theme', themeName);
+      
+      // bodyに属性セット
+      document.body.setAttribute('data-theme', themeName);
+      
+      // ボタンのアクティブ表示切替
+      document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(`theme-btn-${themeName}`).classList.add('active');
+
+      // 天気背景色などの再適用（天気情報取得済みなら）
+      if (weatherCode !== null) {
+          applyWeatherEffect(weatherCode);
+      }
+      
+      // グラフの色更新のため再描画
+      if(myChart) updateChartAndScore();
   }
 
   // スワイプ判定ロジック
@@ -500,7 +594,7 @@
           const price = parseFloat(row.querySelector('.price').value);
           const resEl = row.querySelector('.calc-result');
           
-          row.classList.remove('is-cheapest'); // 一旦リセット
+          row.classList.remove('is-cheapest'); 
 
           if (qty > 0 && price > 0) {
               const unitPrice = price / qty;
@@ -512,7 +606,6 @@
           }
       });
 
-      // 最小値ハイライト（2つ以上入力がある場合のみ）
       if (validRows.length >= 2) {
           validRows.forEach(item => {
               if (item.unitPrice === minUnit) {
@@ -547,9 +640,9 @@
       const targetLabel = isPm ? "明日" : "今日";
 
       const daily = data.daily;
-      const code = daily.weathercode[targetIndex];
-      const weatherText = getWmoWeatherText(code);
-      const weatherIcon = getWmoWeatherIcon(code);
+      weatherCode = daily.weathercode[targetIndex]; // グローバル変数に保存
+      const weatherText = getWmoWeatherText(weatherCode);
+      const weatherIcon = getWmoWeatherIcon(weatherCode);
       const maxTemp = daily.temperature_2m_max[targetIndex];
       const minTemp = daily.temperature_2m_min[targetIndex];
       const pop = daily.precipitation_probability_max[targetIndex];
@@ -563,7 +656,7 @@
       
       document.getElementById('weather-bar').style.display = 'flex';
 
-      applyWeatherEffect(code);
+      applyWeatherEffect(weatherCode);
 
     } catch (e) {
       console.log("Weather error: ", e);
@@ -781,9 +874,10 @@
             suggestedMax: 8,
             pointLabels: {
               font: { size: 14, weight: 'bold' },
-              color: '#555'
+              color: '#555' /* 初期値。後でJSで上書きされる */
             },
-            ticks: { display: false, stepSize: 2 }
+            ticks: { display: false, stepSize: 2 },
+            grid: { color: '#ddd' } /* ダークモード対応のため後で変数化も可能だが一旦固定 */
           }
         },
         plugins: { legend: { display: false } }
@@ -810,9 +904,20 @@
 
     myChart.data.datasets[0].data = [totalY, totalR, totalG];
     
-    const color = currentUser === 'boy' ? '0, 122, 255' : '255, 45, 85';
-    myChart.data.datasets[0].backgroundColor = `rgba(${color}, 0.2)`;
-    myChart.data.datasets[0].borderColor = `rgba(${color}, 1)`;
+    // テーマに合わせた色調整
+    const isDark = currentTheme === 'dark';
+    const accentColor = currentUser === 'boy' 
+       ? (isDark ? '64, 156, 255' : '0, 122, 255') 
+       : (isDark ? '255, 100, 130' : '255, 45, 85');
+    
+    myChart.data.datasets[0].backgroundColor = `rgba(${accentColor}, 0.2)`;
+    myChart.data.datasets[0].borderColor = `rgba(${accentColor}, 1)`;
+    
+    // 文字色調整
+    myChart.options.scales.r.pointLabels.color = isDark ? '#aaaaaa' : '#555';
+    myChart.options.scales.r.grid.color = isDark ? '#444' : '#ddd';
+    myChart.options.scales.r.angleLines.color = isDark ? '#444' : '#ddd';
+
     myChart.update();
 
     const totalScore = totalY + totalR + totalG;
@@ -850,6 +955,7 @@
 
   function updateTheme() {
     document.body.setAttribute('data-user', currentUser);
+    if(myChart) updateChartAndScore(); // チャート色更新
   }
 
   function saveData() {
