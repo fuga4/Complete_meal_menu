@@ -11,22 +11,37 @@
 <link rel="apple-touch-icon" href="icon.jpg">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
 <style>
   /* --- 共通変数定義 --- */
   :root {
     --transition-speed: 0.3s;
     
-    /* ★変更：モダングレイッシュ（くすみ）カラー定義 */
-    --color-boy: #6086B0;   /* グレイッシュブルー */
-    --color-girl: #C07B8E;  /* ダスティピンク */
+    /* モダングレイッシュカラー */
+    --color-boy: #6086B0;   
+    --color-girl: #C07B8E;  
     
-    --color-success: #699B7E; /* セージグリーン（完食） */
-    --color-danger: #C26D6D;  /* ミュートレッド（残し） */
-    --color-neutral: #E0E0E0; /* グレー（未選択） */
+    --color-success: #699B7E; 
+    --color-danger: #C26D6D;  
+    --color-neutral: #E0E0E0; 
     
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --letter-spacing: 0.03em; 
   }
+
+  /* アイコンの共通設定 */
+  .material-symbols-rounded {
+    font-size: 1.1rem; /* 文字より少し大きく */
+    vertical-align: middle;
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+    margin-right: 4px; /* アイコンと文字の間隔 */
+  }
+  
+  /* 栄養素リスト用のアイコン色 */
+  .icon-yellow { color: #D4A056; }
+  .icon-red    { color: #C26D6D; }
+  .icon-green  { color: #699B7E; }
 
   /* 1. Minimal (ミニマル) */
   body[data-theme="minimal"] {
@@ -36,41 +51,32 @@
     --text-main: #333333;
     --text-sub: #8E8E93;
     --border-color: #E5E5EA;
-    
     --shadow-card: 0 1px 2px rgba(0,0,0,0.04);
     --shadow-btn: 0 1px 2px rgba(0,0,0,0.05);
     --shadow-float: 0 4px 12px rgba(0,0,0,0.08);
-    
     --radius-card: 8px;
     --radius-btn: 6px;
     --btn-bg-off: #F2F2F7;
     --btn-text-off: #8E8E93;
-    
     --backdrop: saturate(180%) blur(20px);
     --border-width: 1px;
   }
 
   /* 2. Glass (グラス) */
   body[data-theme="glass"] {
-    /* 背景を少し濃いめにして白文字を見やすく */
     --bg-body: linear-gradient(135deg, #E3E9F2 0%, #E8E4F0 100%);
     --bg-card: rgba(255, 255, 255, 0.65);
     --bg-header: rgba(255, 255, 255, 0.75);
     --text-main: #3A3A3C;
     --text-sub: #7C7C82;
     --border-color: rgba(255, 255, 255, 0.8);
-    
-    --shadow-card: 
-      0 4px 24px -1px rgba(0, 0, 0, 0.05),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+    --shadow-card: 0 4px 24px -1px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
     --shadow-btn: 0 2px 8px rgba(0,0,0,0.03), inset 0 0 0 1px rgba(255,255,255,0.4);
     --shadow-float: 0 8px 32px rgba(0,0,0,0.12);
-    
     --radius-card: 12px;
     --radius-btn: 10px;
     --btn-bg-off: rgba(255, 255, 255, 0.5);
     --btn-text-off: #7C7C82;
-    
     --backdrop: blur(16px) saturate(150%);
     --border-width: 0px;
   }
@@ -83,33 +89,25 @@
     --text-main: #4A5568;
     --text-sub: #A0AEC0;
     --border-color: transparent;
-    
     --shadow-card: 8px 8px 16px #D9E2EC, -8px -8px 16px #FFFFFF;
     --shadow-btn: 4px 4px 8px #D9E2EC, -4px -4px 8px #FFFFFF;
     --shadow-btn-active: inset 4px 4px 8px #D9E2EC, inset -4px -4px 8px #FFFFFF;
     --shadow-float: 12px 12px 24px #D9E2EC;
-
     --radius-card: 16px;
     --radius-btn: 10px;
     --btn-bg-off: #EEF1F5;
     --btn-text-off: #A0AEC0;
-    
     --backdrop: none;
     --border-width: 0px;
   }
 
-  /* ユーザーカラー適用 */
   body[data-user="boy"] { --accent: var(--color-boy); --accent-light: #F0F4F8; }
   body[data-user="girl"] { --accent: var(--color-girl); --accent-light: #F9F0F2; }
+  body[data-theme="glass"][data-user="boy"] { --accent: #5076A0; }
 
-  /* Glassテーマ時の視認性調整 */
-  body[data-theme="glass"][data-user="boy"] { --accent: #5076A0; } /* 少し濃くする */
-
-  /* 天気背景の上書き (Glassテーマ以外) */
   body:not([data-theme="glass"]).weather-sunny { background-color: #EBF7FF !important; }
   body:not([data-theme="glass"]).weather-cloudy { background-color: #E0E5EC !important; }
 
-  /* --- ベーススタイル --- */
   body {
     font-family: var(--font-family);
     letter-spacing: var(--letter-spacing);
@@ -124,16 +122,13 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* 絵文字トーンダウン */
-  .emoji-toned { filter: grayscale(0.2) opacity(0.85); display: inline-block; }
-
   #weather-animation-container {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       pointer-events: none; z-index: -1; overflow: hidden;
   }
   .rain-drop {
       position: absolute; width: 3px; height: 20px; 
-      background: rgba(96, 134, 176, 0.6); bottom: 100%; /* 雨もグレイッシュブルーに */
+      background: rgba(96, 134, 176, 0.6); bottom: 100%;
       animation: fall linear infinite;
   }
   .snow-flake {
@@ -169,7 +164,6 @@
     border-bottom: var(--border-width) solid var(--border-color);
   }
 
-  /* ユーザー切り替えボタン */
   .user-btn {
     flex: 2; padding: 10px 4px;
     border-radius: var(--radius-btn); 
@@ -184,29 +178,23 @@
     display: flex; justify-content: center; align-items: center; gap: 4px;
   }
   
-  /* アクティブ時：色はCSS変数(--accent)で制御 */
   body[data-user="boy"] .user-btn[data-target="boy"],
   body[data-user="girl"] .user-btn[data-target="girl"] { 
     background: var(--accent); color: white; border-color: transparent;
-    box-shadow: 0 2px 8px rgba(0,0,0, 0.15); /* 影をグレーにして馴染ませる */
+    box-shadow: 0 2px 8px rgba(0,0,0, 0.15);
   }
   
-  /* Glassテーマのアクティブ調整 */
   body[data-theme="glass"][data-user="boy"] .user-btn[data-target="boy"],
   body[data-theme="glass"][data-user="girl"] .user-btn[data-target="girl"] {
-      opacity: 1;
-      background: var(--accent); /* 透明度をなくして視認性確保 */
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      opacity: 1; background: var(--accent); box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   }
   
-  /* Clayテーマのアクティブ時 */
   body[data-theme="clay"][data-user="boy"] .user-btn[data-target="boy"],
   body[data-theme="clay"][data-user="girl"] .user-btn[data-target="girl"] {
     background: var(--btn-bg-off); color: var(--accent);
     box-shadow: var(--shadow-btn-active);
   }
 
-  /* ツールボタン */
   .btn-tool {
     flex: 1; font-size: 0.75rem; 
     background: var(--bg-card); 
@@ -229,9 +217,7 @@
     transition: all 0.3s;
     display: flex; justify-content: center; align-items: center; gap: 4px;
   }
-  .tab-btn.active {
-    border-bottom-color: var(--accent); color: var(--accent); 
-  }
+  .tab-btn.active { border-bottom-color: var(--accent); color: var(--accent); }
   body:not([data-theme="minimal"]) .tab-btn.active {
       background: linear-gradient(to bottom, transparent, var(--accent-light));
   }
@@ -243,64 +229,40 @@
   }
   .category-title::before {
     content: ''; display: inline-block; width: 3px; height: 14px;
-    background: var(--accent); margin-right: 8px; border-radius: 2px;
-    opacity: 0.8;
+    background: var(--accent); margin-right: 8px; border-radius: 2px; opacity: 0.8;
   }
 
-  /* リストカード */
   .list-card {
-    background: var(--bg-card); 
-    border-radius: var(--radius-card); 
-    box-shadow: var(--shadow-card);
-    margin-bottom: 18px; overflow: hidden;
+    background: var(--bg-card); border-radius: var(--radius-card); 
+    box-shadow: var(--shadow-card); margin-bottom: 18px; overflow: hidden;
     transition: all var(--transition-speed);
-    backdrop-filter: var(--backdrop); 
-    border: var(--border-width) solid var(--border-color);
+    backdrop-filter: var(--backdrop); border: var(--border-width) solid var(--border-color);
   }
   
-  /* ★修正：レイアウト崩れ防止 */
   .item-row {
-    display: flex; 
-    align-items: center; 
-    justify-content: space-between; /* 左右配置 */
-    gap: 8px; /* 要素間の隙間 */
-    padding: 15px 18px; 
-    border-bottom: 1px solid rgba(0,0,0,0.03);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 15px 18px; border-bottom: 1px solid rgba(0,0,0,0.03);
   }
   .item-row:last-child { border-bottom: none; }
   
   .item-name { 
     font-weight: 600; font-size: 0.95rem; color: var(--text-main); 
-    flex: 1; /* 余ったスペースを全部使う */
-    min-width: 0; /* 文字が長くても縮まないようにするリセット */
-    word-break: break-all; /* 長すぎる単語は折り返す */
-    line-height: 1.4;
+    flex: 1; min-width: 0; word-break: break-all; line-height: 1.4;
   }
 
-  .options { 
-    flex-shrink: 0; /* 絶対に縮まないようにする */
-    display: flex; 
-    gap: 6px; 
-  }
+  .options { flex-shrink: 0; display: flex; gap: 6px; }
 
   .radio-label {
-    padding: 8px 0; /* 横幅はwidthで指定するためpadding横は0 */
-    width: 48px;    /* 幅を固定して文字崩れを防ぐ */
-    border-radius: 6px;
-    border: 1px solid transparent;
-    font-size: 0.75rem; 
-    cursor: pointer; background: var(--btn-bg-off); 
-    color: var(--btn-text-off); 
-    text-align: center;
+    padding: 8px 0; width: 48px; border-radius: 6px; border: 1px solid transparent;
+    font-size: 0.75rem; cursor: pointer; background: var(--btn-bg-off); 
+    color: var(--btn-text-off); text-align: center;
     transition: all 0.2s; font-weight: 600; box-shadow: var(--shadow-btn);
-    white-space: nowrap; /* 文字の折り返し禁止 */
-    display: flex; justify-content: center; align-items: center;
+    white-space: nowrap; display: flex; justify-content: center; align-items: center;
   }
   body[data-theme="minimal"] .radio-label { border-color: var(--border-color); background: #fff; box-shadow: none; }
 
   input[type="radio"] { display: none; }
   
-  /* ★変更：グレイッシュカラー適用 */
   input[value="finish"]:checked + .radio-label { 
     background-color: var(--color-success); color: white; border-color: transparent; 
     box-shadow: 0 2px 8px rgba(105, 155, 126, 0.4);
@@ -341,21 +303,14 @@
     text-align: center; font-size: 0.85rem; color: var(--text-sub); margin-bottom: 10px; 
     font-weight: 700; width:100%; display: flex; justify-content: center; align-items: center; gap:6px;
   }
-  .chart-title::after {
-    content: '?'; display: inline-block; width: 16px; height: 16px; 
-    background: var(--text-sub); color: var(--bg-card); border-radius: 50%; 
-    font-size: 11px; line-height: 16px; text-align: center; opacity: 0.7;
-  }
-
+  
   .score-area {
     margin: 0 18px 20px 18px; background: var(--bg-card); border-radius: var(--radius-card);
     padding: 25px; text-align: center; box-shadow: var(--shadow-float);
-    backdrop-filter: var(--backdrop);
-    position: relative; overflow: hidden;
+    backdrop-filter: var(--backdrop); position: relative; overflow: hidden;
     border: var(--border-width) solid var(--border-color);
   }
   body[data-theme="minimal"] .score-area { border: 2px solid var(--accent); box-shadow: none; }
-
   body[data-theme="glass"] .score-area::before {
     content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
     background: linear-gradient(to bottom right, rgba(255,255,255,0.4), transparent);
@@ -363,8 +318,7 @@
   }
   .score-label { font-size: 0.85rem; color: var(--text-sub); font-weight: 700; letter-spacing: 0.05em; }
   .score-value { 
-    font-size: 3rem; font-weight: 800; color: var(--accent); line-height: 1.1; 
-    margin: 5px 0;
+    font-size: 3rem; font-weight: 800; color: var(--accent); line-height: 1.1; margin: 5px 0;
   }
   .score-comment { font-size: 1rem; color: var(--text-main); margin-top: 8px; font-weight: 700; }
 
@@ -392,9 +346,7 @@
   }
   .calc-input:focus { border-color: var(--accent); background: var(--bg-card); outline: none; }
   .calc-result { text-align: center; font-size: 0.9rem; color: var(--text-sub); font-weight: 700; }
-  .calc-row.is-cheapest .calc-input { 
-    border-color: var(--accent); background-color: var(--accent-light);
-  }
+  .calc-row.is-cheapest .calc-input { border-color: var(--accent); background-color: var(--accent-light); }
   .calc-row.is-cheapest .calc-result { color: var(--color-danger); font-size: 1.1rem; }
 
   .theme-switcher-area { margin: 40px 18px 120px 18px; text-align: center; }
@@ -466,10 +418,10 @@
 
 <div id="weather-bar" class="weather-bar" style="display:none;">
   <span id="weather-date-label"></span>
-  <span class="emoji-toned weather-icon" id="weather-icon"></span>
+  <span class="material-symbols-rounded">partly_cloudy_day</span>
   <span id="weather-text"></span>
   <span style="margin-left:10px; color:var(--accent); display:flex; align-items:center;">
-    <span class="emoji-toned" style="font-size:0.9rem; margin-right:2px;">☂️</span>
+    <span class="material-symbols-rounded" style="font-size:1rem;">umbrella</span>
     <span id="weather-pop"></span>%
   </span>
   <span style="margin-left:10px;">
@@ -481,23 +433,23 @@
 <div class="sticky-header-group">
   <div class="top-row">
     <button class="user-btn" data-target="boy" onclick="switchUser('boy')">
-      <span class="emoji-toned">🌙</span> 男の子
+      <span class="material-symbols-rounded">bedtime</span> 男の子
     </button>
     <button class="user-btn" data-target="girl" onclick="switchUser('girl')">
-      <span class="emoji-toned">🎵</span> 女の子
+      <span class="material-symbols-rounded">music_note</span> 女の子
     </button>
     <button id="btn-partner-copy" class="btn-tool btn-partner-copy" onclick="copyToPartner()">
-      <span class="emoji-toned">📋</span> 🎵へコピー
+      <span class="material-symbols-rounded">content_copy</span> 🎵へコピー
     </button>
     <button class="btn-tool" onclick="showResetModal()">リセット</button>
   </div>
 
   <div class="tabs">
     <div class="tab-btn active" id="tab-morning" onclick="switchMeal('morning')">
-      <span class="emoji-toned">🌅</span> 朝食
+      <span class="material-symbols-rounded">wb_twilight</span> 朝食
     </div>
     <div class="tab-btn" id="tab-dinner" onclick="switchMeal('dinner')">
-      <span class="emoji-toned">🌃</span> 夕食
+      <span class="material-symbols-rounded">restaurant</span> 夕食
     </div>
   </div>
 </div>
@@ -533,7 +485,7 @@
 <div class="calc-area">
   <div class="calc-header">
       <span class="calc-title">
-        <span class="emoji-toned">🛒</span> どっちがお得？計算機
+        <span class="material-symbols-rounded">shopping_cart</span> どっちがお得？計算機
       </span>
       <button class="calc-reset-btn" onclick="clearCalc()">クリア</button>
   </div>
@@ -552,7 +504,7 @@
 
 <div class="theme-switcher-area">
   <div class="theme-title">
-    <span class="emoji-toned">🎨</span> デザイン切替
+    <span class="material-symbols-rounded">palette</span> デザイン切替
   </div>
   <div class="theme-btn-group">
     <button class="theme-btn active" id="theme-btn-minimal" onclick="switchTheme('minimal')">Minimal</button>
@@ -581,15 +533,21 @@
     <div class="modal-title">栄養素のヒミツ</div>
     <div class="nutrition-list">
       <div class="nutrition-item">
-        <span class="nut-label" style="color:#D4A056"><span class="emoji-toned">💛</span> 黄（エネルギー）</span>
+        <span class="nut-label" style="color:#D4A056">
+          <span class="material-symbols-rounded icon-yellow">bolt</span> 黄（エネルギー）
+        </span>
         <span class="nut-desc">炭水化物、油、砂糖<br>（パン、ご飯、ポテト、甘栗など）</span>
       </div>
       <div class="nutrition-item">
-        <span class="nut-label" style="color:#C26D6D"><span class="emoji-toned">❤️</span> 赤（からだを作る）</span>
+        <span class="nut-label" style="color:#C26D6D">
+          <span class="material-symbols-rounded icon-red">fitness_center</span> 赤（からだを作る）
+        </span>
         <span class="nut-desc">タンパク質、カルシウム<br>（肉、魚、卵、牛乳、豆、チーズ）</span>
       </div>
       <div class="nutrition-item">
-        <span class="nut-label" style="color:#699B7E"><span class="emoji-toned">💚</span> 緑（調子を整える）</span>
+        <span class="nut-label" style="color:#699B7E">
+          <span class="material-symbols-rounded icon-green">spa</span> 緑（調子を整える）
+        </span>
         <span class="nut-desc">ビタミン、ミネラル、食物繊維<br>（野菜、果物）</span>
       </div>
     </div>
@@ -644,7 +602,6 @@
     const lastUser = localStorage.getItem('fc_last_user');
     if(lastUser) currentUser = lastUser;
 
-    // テーマ読み込み
     const lastTheme = localStorage.getItem('fc_theme');
     if(lastTheme) {
         if (['minimal', 'glass', 'clay'].includes(lastTheme)) {
@@ -678,7 +635,6 @@
       
       document.body.setAttribute('data-theme', themeName);
       
-      // ボタンのアクティブ切り替え
       document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
       const activeBtn = document.getElementById(`theme-btn-${themeName}`);
       if(activeBtn) activeBtn.classList.add('active');
@@ -790,13 +746,11 @@
       const daily = data.daily;
       weatherCode = daily.weathercode[targetIndex]; 
       const weatherText = getWmoWeatherText(weatherCode);
-      const weatherIcon = getWmoWeatherIcon(weatherCode);
       const maxTemp = daily.temperature_2m_max[targetIndex];
       const minTemp = daily.temperature_2m_min[targetIndex];
       const pop = daily.precipitation_probability_max[targetIndex];
 
       document.getElementById('weather-date-label').textContent = targetLabel + "：";
-      document.getElementById('weather-icon').textContent = weatherIcon;
       document.getElementById('weather-text').textContent = weatherText;
       document.getElementById('weather-pop').textContent = (pop !== null) ? pop : "--";
       document.getElementById('temp-min').textContent = (minTemp !== null) ? Math.round(minTemp) : "--";
@@ -818,7 +772,6 @@
       body.classList.remove('weather-sunny', 'weather-cloudy');
       clearWeatherAnimation();
 
-      // Glassテーマ以外でのみ背景色を変更
       if (currentTheme !== 'glass') {
         if (code === 0 || code === 1) { 
             body.classList.add('weather-sunny');
@@ -827,9 +780,9 @@
         }
       }
 
-      if ([71, 73, 75, 77, 85, 86].includes(code)) { // 雪
+      if ([71, 73, 75, 77, 85, 86].includes(code)) { 
           startSnowAnimation(container);
-      } else if (code > 3) { // 雨・その他
+      } else if (code > 3) { 
           startRainAnimation(container);
       }
   }
@@ -865,16 +818,6 @@
       }, 200);
   }
 
-  function getWmoWeatherIcon(code) {
-    if (code === 0) return "☀️";
-    if ([1, 2, 3].includes(code)) return "⛅️";
-    if ([45, 48].includes(code)) return "🌫️";
-    if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return "☂️";
-    if ([71, 73, 75, 77, 85, 86].includes(code)) return "☃️";
-    if (code >= 95) return "⚡️";
-    return "☁️";
-  }
-  
   function getWmoWeatherText(code) {
     if (code === 0) return "晴天";
     if ([1, 2, 3].includes(code)) return "くもり"; 
@@ -947,8 +890,7 @@
     document.getElementById(`tab-${currentMeal}`).classList.add('active');
     
     const partnerBtn = document.getElementById('btn-partner-copy');
-    // 絵文字を含むHTMLをセット
-    partnerBtn.innerHTML = `<span class="emoji-toned">📋</span> ${currentUser === 'boy' ? '🎵へコピー' : '🌙へコピー'}`;
+    partnerBtn.innerHTML = `<span class="material-symbols-rounded">content_copy</span> ${currentUser === 'boy' ? '🎵へコピー' : '🌙へコピー'}`;
 
     const container = document.getElementById('list-container');
     container.innerHTML = '';
@@ -1013,7 +955,7 @@
           borderColor: 'rgba(0, 122, 255, 1)',
           borderWidth: 3,
           pointRadius: 5,
-          pointBackgroundColor: ['#D4A056', '#C26D6D', '#699B7E'], /* グラフ色もくすみカラーに */
+          pointBackgroundColor: ['#D4A056', '#C26D6D', '#699B7E'],
           pointBorderColor: '#fff',
           pointHoverRadius: 7,
         }]
@@ -1059,13 +1001,11 @@
 
     myChart.data.datasets[0].data = [totalY, totalR, totalG];
     
-    // テーマに合わせた色調整（CSS変数から取得して適用）
     const rootStyles = getComputedStyle(document.documentElement);
     const accentColorHex = currentUser === 'boy' 
        ? rootStyles.getPropertyValue('--color-boy').trim()
        : rootStyles.getPropertyValue('--color-girl').trim();
     
-    // HEX to RGB 変換
     let r=0, g=0, b=0;
     if(accentColorHex.startsWith('#')) {
         const hex = accentColorHex.slice(1);
@@ -1077,7 +1017,6 @@
     myChart.data.datasets[0].backgroundColor = `rgba(${r}, ${g}, ${b}, 0.2)`;
     myChart.data.datasets[0].borderColor = `rgba(${r}, ${g}, ${b}, 1)`;
     
-    // チャートのグリッド色などをテーマに合わせて微調整
     const isDark = currentTheme === 'glass' && window.matchMedia('(prefers-color-scheme: dark)').matches; 
     const gridColor = isDark ? 'rgba(255,255,255,0.1)' : '#E5E5EA';
     const labelColor = isDark ? 'rgba(255,255,255,0.6)' : '#8E8E93';
