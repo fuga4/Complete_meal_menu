@@ -259,6 +259,14 @@
   .item-name { 
     font-weight: 600; font-size: 0.9rem; color: var(--text-main); 
     flex: 1; min-width: 0; word-break: break-all; line-height: 1.3;
+    display: flex; align-items: center;
+  }
+  
+  /* ★追加：メニュー横のアイコンスタイル */
+  .menu-icon-disp {
+    font-size: 1.2rem; margin-right: 8px; 
+    width: 24px; text-align: center;
+    flex-shrink: 0;
   }
 
   .options { flex-shrink: 0; display: flex; gap: 6px; }
@@ -952,14 +960,17 @@
     lines.forEach(line => {
       const parts = line.split(',');
       if (parts.length < 6) return;
-      const [m, c, item, y, r, g, sub] = parts; // sub (7列目) を取得
+      // CSV列: 1:Time, 2:Cat, 3:Name, 4:Y, 5:R, 6:G, 7:Sub, 8:Icon, 9:Color
+      const [m, c, item, y, r, g, sub, icon, color] = parts; 
       const catName = CATEGORY_MAP[c.trim()];
       
       if (!catName) return;
       const itemName = item.trim();
-      const subCat = sub ? sub.trim() : ''; // サブカテゴリがない場合は空文字
+      const subCat = sub ? sub.trim() : ''; 
+      const iconName = icon ? icon.trim() : '';
+      const colorCode = color ? color.trim() : '';
 
-      const dataObj = { name: itemName, sub: subCat };
+      const dataObj = { name: itemName, sub: subCat, icon: iconName, color: colorCode };
 
       if (m.trim() === '1') menuData.morning[catName].push(dataObj);
       else if (m.trim() === '2') menuData.dinner[catName].push(dataObj);
@@ -1001,14 +1012,12 @@
       // 1. まずサブカテゴリ無し(その他)を表示
       const noSubItems = items.filter(i => !i.sub);
       noSubItems.forEach(itemObj => {
-          card.appendChild(createItemRow(itemObj.name, checks));
+          card.appendChild(createItemRow(itemObj, checks));
       });
 
       // 2. サブカテゴリごとにグループ化して表示
-      // 存在するサブカテゴリのリストを作成（重複排除）
       let subCategories = [...new Set(items.filter(i => i.sub).map(i => i.sub))];
       
-      // ★追加：指定順に並び替え
       const ORDER_LIST = ["豆・卵・乳", "芋・栗・南瓜", "おかず・粉もの", "野菜・きのこ"];
       subCategories.sort((a, b) => {
           let idxA = ORDER_LIST.indexOf(a);
@@ -1019,16 +1028,14 @@
       });
       
       subCategories.forEach(subName => {
-          // サブカテゴリ見出し
           const subHeader = document.createElement('div');
           subHeader.className = 'subcategory-title';
           subHeader.textContent = subName;
           card.appendChild(subHeader);
 
-          // そのサブカテゴリのアイテムを表示
           const subItems = items.filter(i => i.sub === subName);
           subItems.forEach(itemObj => {
-              card.appendChild(createItemRow(itemObj.name, checks));
+              card.appendChild(createItemRow(itemObj, checks));
           });
       });
 
@@ -1042,14 +1049,24 @@
   }
 
   // 行作成のヘルパー関数
-  function createItemRow(itemName, checks) {
+  function createItemRow(itemObj, checks) {
       const row = document.createElement('div');
       row.className = 'item-row';
+      const itemName = itemObj.name;
       const savedVal = checks[itemName] || 'none';
       const radioName = `radio_${itemName}`;
 
+      // アイコンがある場合のHTML生成
+      let iconHtml = '';
+      if(itemObj.icon && itemObj.color) {
+          iconHtml = `<span class="material-symbols-rounded menu-icon-disp" style="color:${itemObj.color};">${itemObj.icon}</span>`;
+      }
+
       row.innerHTML = `
-        <div class="item-name">${itemName}</div>
+        <div class="item-name">
+          ${iconHtml}
+          <span>${itemName}</span>
+        </div>
         <div class="options">
           <label><input type="radio" name="${radioName}" value="finish" 
             ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData()">
@@ -1269,7 +1286,6 @@
         if (!items) return;
 
         items.forEach(itemObj => {
-            // itemObjはオブジェクトなので .name でアクセス
             const itemName = itemObj.name;
             const val = checks[itemName];
             if (val === 'finish') {
