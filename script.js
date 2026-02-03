@@ -324,7 +324,6 @@ function parseCsv(text) {
   lines.forEach(line => {
     const parts = line.split(',');
     if (parts.length < 6) return;
-    // CSV列: 1:Time, 2:Cat, 3:Name, 4:Y, 5:R, 6:G, 7:Sub, 8:Icon, 9:Color
     const [m, c, item, y, r, g, sub, icon, color] = parts; 
     const catName = CATEGORY_MAP[c.trim()];
     
@@ -347,7 +346,6 @@ function parseCsv(text) {
   });
 }
 
-// サブカテゴリごとに指定順でグルーピング表示
 function renderPage() {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`tab-${currentMeal}`).classList.add('active');
@@ -373,13 +371,11 @@ function renderPage() {
     const card = document.createElement('div');
     card.className = 'list-card';
 
-    // 1. まずサブカテゴリ無し(その他)を表示
     const noSubItems = items.filter(i => !i.sub);
     noSubItems.forEach(itemObj => {
         card.appendChild(createItemRow(itemObj, checks));
     });
 
-    // 2. サブカテゴリごとにグループ化して表示
     let subCategories = [...new Set(items.filter(i => i.sub).map(i => i.sub))];
     
     const ORDER_LIST = ["豆・卵・乳", "芋・栗・南瓜", "おかず・粉もの", "野菜・きのこ"];
@@ -412,7 +408,6 @@ function renderPage() {
   if (document.activeElement !== olInput) olInput.value = savedData.otherLeft || '';
 }
 
-// 行作成のヘルパー関数
 function createItemRow(itemObj, checks) {
     const row = document.createElement('div');
     row.className = 'item-row';
@@ -420,7 +415,6 @@ function createItemRow(itemObj, checks) {
     const savedVal = checks[itemName] || 'none';
     const radioName = `radio_${itemName}`;
 
-    // アイコンがある場合のHTML生成
     let iconHtml = '';
     if(itemObj.icon && itemObj.color) {
         iconHtml = `<span class="material-symbols-rounded menu-icon-disp" style="color:${itemObj.color};">${itemObj.icon}</span>`;
@@ -617,24 +611,39 @@ window.resetAll = function() {
   window.set(window.ref(window.db, dataPath), null);
 }
 
+// トースト通知を表示するヘルパー
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.className = 'toast show';
+  
+  // 3秒後に非表示
+  setTimeout(() => {
+    toast.className = 'toast';
+  }, 3000);
+}
+
+// パートナーコピー: 確認ダイアログなしでコピーし、トースト通知
 window.copyToPartner = function() {
   const targetUser = currentUser === 'boy' ? 'girl' : 'boy';
   const targetName = currentUser === 'boy' ? '女の子' : '男の子';
   const mealName = currentMeal === 'morning' ? '朝食' : '夕食';
-  if(!confirm(`現在表示中の内容を\n「${targetName}」の「${mealName}」に\n上書きコピーしますか？`)) return;
+  
   const sourcePath = `users/${currentUser}/${currentMeal}`;
   const targetPath = `users/${targetUser}/${currentMeal}`;
+  
   window.get(window.ref(window.db, sourcePath)).then((snapshot) => {
     if (snapshot.exists()) {
       window.set(window.ref(window.db, targetPath), snapshot.val());
-      alert(`コピーしました！`);
+      showToast(`${targetName}へコピーしました！`);
     } else {
-      alert("コピーするデータがありません。");
+      showToast("データがありません");
     }
   });
 }
 
-window.generateAndCopy = function() {
+// Generate & Copy: モーダルなし、トースト通知、起動分岐
+window.generateAndCopy = function(shouldLaunch) {
   const ICON_FINISH = "⭕️";
   const ICON_LEFT   = "🔺"; 
   
@@ -666,27 +675,38 @@ window.generateAndCopy = function() {
   if(otherL) resultLines.push(`【その他】${ICON_LEFT}${otherL}`);
 
   if(resultLines.length === 0) {
-     alert("選択された項目がありません");
+     showToast("選択項目がありません");
      return;
   }
 
   let resultText = resultLines.join("\n");
 
-  if (navigator.clipboard) {
-      navigator.clipboard.writeText(resultText).then(() => {
-          if(confirm("コピーしました！\n\nコドモン（ブラウザ版）を起動しますか？")) {
-              window.open('https://parents.codmon.com/contact', '_blank');
+  const executeCopy = () => {
+      if (navigator.clipboard) {
+          navigator.clipboard.writeText(resultText).then(() => {
+              showToast("コピーしました！");
+              if (shouldLaunch) {
+                  setTimeout(() => {
+                      window.open('https://parents.codmon.com/contact', '_blank');
+                  }, 800); // トーストが見えるように少し待つ
+              }
+          });
+      } else {
+          // Fallback
+          const ta = document.createElement('textarea');
+          ta.value = resultText;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          showToast("コピーしました！");
+          if (shouldLaunch) {
+              setTimeout(() => {
+                  window.open('https://parents.codmon.com/contact', '_blank');
+              }, 800);
           }
-      });
-  } else {
-      const ta = document.createElement('textarea');
-      ta.value = resultText;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      if(confirm("コピーしました！\n\nコドモン（ブラウザ版）を起動しますか？")) {
-          window.open('https://parents.codmon.com/contact', '_blank');
       }
-  }
+  };
+
+  executeCopy();
 }
