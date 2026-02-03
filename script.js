@@ -13,6 +13,9 @@ let weatherCode = null;
 let touchStartX = 0;
 let touchStartY = 0;
 
+// ★追加：日付の境界線（朝4時）
+const DAY_SWITCH_HOUR = 4;
+
 // グローバル関数として公開
 window.initApp = function() {
   const lastUser = localStorage.getItem('fc_last_user');
@@ -27,11 +30,12 @@ window.initApp = function() {
       }
   }
 
+  // 時間帯による食事の自動切り替え（朝4時〜14時は朝食、それ以外は夕食）
   const currentHour = new Date().getHours();
-  if (currentHour >= 12) {
-      currentMeal = 'dinner';
-  } else {
+  if (currentHour >= 4 && currentHour < 14) {
       currentMeal = 'morning';
+  } else {
+      currentMeal = 'dinner';
   }
 
   updateTheme(); 
@@ -298,37 +302,70 @@ function setupRealtimeListener() {
     } else {
       currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
     }
-    // ★追加：データ取得時にステータス表示を更新
+    // データ取得時にステータス表示を更新
     updateStatusIndicator(currentFirebaseData);
     renderPage(); 
     updateChartAndScore(); 
   });
 }
 
-// ★追加：ステータスバー更新ロジック
+// ★重要：生活リズムに合わせた日付判定（朝4時区切り）
+function getLogicalDate() {
+    const now = new Date();
+    // 4時より前なら日付を1日戻す（深夜25時などは「昨日」として扱う）
+    if (now.getHours() < DAY_SWITCH_HOUR) {
+        now.setDate(now.getDate() - 1);
+    }
+    const y = now.getFullYear();
+    const m = ('0' + (now.getMonth() + 1)).slice(-2);
+    const d = ('0' + now.getDate()).slice(-2);
+    return `${y}-${m}-${d}`;
+}
+
+// 現在時刻（HH:mm）を取得するヘルパー
+function getCurrentTimeStr() {
+    const now = new Date();
+    const h = ('0' + now.getHours()).slice(-2);
+    const m = ('0' + now.getMinutes()).slice(-2);
+    return `${h}:${m}`;
+}
+
+// ステータスバー更新ロジック
 function updateStatusIndicator(data) {
     const statusBar = document.getElementById('status-bar');
     const statusIcon = document.getElementById('status-icon');
     const statusText = document.getElementById('status-text');
     const container = document.getElementById('list-container');
 
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const lastUpdated = data ? data.lastUpdated : null;
+    const todayLogical = getLogicalDate(); // 朝4時区切りの「今日」
+    const lastUpdatedDate = data ? data.lastUpdatedDate : null;
+    const lastUpdatedTime = data ? data.lastUpdatedTime : null;
 
     // クラスリセット
     statusBar.classList.remove('is-today', 'is-old');
     container.classList.remove('data-old');
 
-    if (lastUpdated === today) {
+    // 日付が一致するか判定
+    if (lastUpdatedDate === todayLogical) {
         // 今日のデータ
         statusBar.classList.add('is-today');
         statusIcon.textContent = 'check_circle';
-        statusText.textContent = '今日の記録';
+        // 時刻があれば表示
+        const timeStr = lastUpdatedTime ? ` (${lastUpdatedTime} 更新)` : '';
+        statusText.textContent = `今日の記録${timeStr}`;
     } else {
         // 過去または未入力
         statusBar.classList.add('is-old');
-        statusIcon.textContent = 'error'; // 注意アイコン
-        statusText.textContent = '未入力 (データは過去)';
+        statusIcon.textContent = 'error'; 
+        
+        let dateMsg = "未入力";
+        if(lastUpdatedDate) {
+            // 日付を短く表示 (YYYY-MM-DD -> M/D)
+            const parts = lastUpdatedDate.split('-');
+            if(parts.length === 3) dateMsg = `データは ${parseInt(parts[1])}/${parseInt(parts[2])} のもの`;
+        }
+        
+        statusText.textContent = dateMsg;
         // 画面全体を少し薄くして「古い」ことを強調
         container.classList.add('data-old');
     }
@@ -595,6 +632,7 @@ function updateTheme() {
   if(myChart) updateChartAndScore(); 
 }
 
+// ★変更：保存時に日付と時刻を別々に保存
 window.saveData = function() {
   const data = {
     checks: {},
@@ -608,9 +646,9 @@ window.saveData = function() {
     data.checks[itemName] = input.value;
   });
 
-  // ★変更：保存時に現在の日付（YYYY-MM-DD）を追加
-  const today = new Date().toISOString().split('T')[0];
-  data.lastUpdated = today;
+  // 朝4時区切りの論理的な日付を使用
+  data.lastUpdatedDate = getLogicalDate();
+  data.lastUpdatedTime = getCurrentTimeStr();
 
   const dataPath = `users/${currentUser}/${currentMeal}`;
   window.set(window.ref(window.db, dataPath), data);
@@ -646,19 +684,16 @@ window.resetAll = function() {
   window.set(window.ref(window.db, dataPath), null);
 }
 
-// トースト通知を表示するヘルパー
 function showToast(message) {
   const toast = document.getElementById('toast');
   toast.textContent = message;
   toast.className = 'toast show';
   
-  // 3秒後に非表示
   setTimeout(() => {
     toast.className = 'toast';
   }, 3000);
 }
 
-// パートナーコピー: 確認ダイアログなしでコピーし、トースト通知
 window.copyToPartner = function() {
   const targetUser = currentUser === 'boy' ? 'girl' : 'boy';
   const targetName = currentUser === 'boy' ? '女の子' : '男の子';
@@ -677,7 +712,6 @@ window.copyToPartner = function() {
   });
 }
 
-// Generate & Copy: モーダルなし、トースト通知、起動分岐
 window.generateAndCopy = function(shouldLaunch) {
   const ICON_FINISH = "⭕️";
   const ICON_LEFT   = "🔺"; 
@@ -723,11 +757,10 @@ window.generateAndCopy = function(shouldLaunch) {
               if (shouldLaunch) {
                   setTimeout(() => {
                       window.open('https://parents.codmon.com/contact', '_blank');
-                  }, 800); // トーストが見えるように少し待つ
+                  }, 800); 
               }
           });
       } else {
-          // Fallback
           const ta = document.createElement('textarea');
           ta.value = resultText;
           document.body.appendChild(ta);
