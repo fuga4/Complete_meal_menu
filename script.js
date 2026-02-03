@@ -298,9 +298,40 @@ function setupRealtimeListener() {
     } else {
       currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
     }
+    // ★追加：データ取得時にステータス表示を更新
+    updateStatusIndicator(currentFirebaseData);
     renderPage(); 
     updateChartAndScore(); 
   });
+}
+
+// ★追加：ステータスバー更新ロジック
+function updateStatusIndicator(data) {
+    const statusBar = document.getElementById('status-bar');
+    const statusIcon = document.getElementById('status-icon');
+    const statusText = document.getElementById('status-text');
+    const container = document.getElementById('list-container');
+
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const lastUpdated = data ? data.lastUpdated : null;
+
+    // クラスリセット
+    statusBar.classList.remove('is-today', 'is-old');
+    container.classList.remove('data-old');
+
+    if (lastUpdated === today) {
+        // 今日のデータ
+        statusBar.classList.add('is-today');
+        statusIcon.textContent = 'check_circle';
+        statusText.textContent = '今日の記録';
+    } else {
+        // 過去または未入力
+        statusBar.classList.add('is-old');
+        statusIcon.textContent = 'error'; // 注意アイコン
+        statusText.textContent = '未入力 (データは過去)';
+        // 画面全体を少し薄くして「古い」ことを強調
+        container.classList.add('data-old');
+    }
 }
 
 async function loadMenuCsv() {
@@ -576,6 +607,10 @@ window.saveData = function() {
     const itemName = input.name.replace('radio_', '');
     data.checks[itemName] = input.value;
   });
+
+  // ★変更：保存時に現在の日付（YYYY-MM-DD）を追加
+  const today = new Date().toISOString().split('T')[0];
+  data.lastUpdated = today;
 
   const dataPath = `users/${currentUser}/${currentMeal}`;
   window.set(window.ref(window.db, dataPath), data);
