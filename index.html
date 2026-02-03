@@ -18,6 +18,8 @@
 </head>
 <body data-user="boy" data-theme="minimal">
 
+<div id="toast" class="toast">メッセージ</div>
+
 <div id="weather-sticky-badge" class="weather-badge" style="display:none;" 
      onclick="window.open('https://weathernews.jp/onebox/35.72301407452235/139.61712889160367/', '_blank')">
   <span class="material-symbols-rounded" id="badge-icon">sunny</span>
@@ -126,7 +128,14 @@
 </div>
 
 <div class="fixed-footer">
-  <button class="btn-copy" onclick="generateAndCopy()">コピーを作成</button>
+  <div class="footer-btn-group">
+    <button class="btn-copy btn-copy-sub" onclick="generateAndCopy(false)">
+      コピーのみ
+    </button>
+    <button class="btn-copy btn-copy-main" onclick="generateAndCopy(true)">
+      コピー＆起動
+    </button>
+  </div>
 </div>
 
 <div id="reset-modal" class="modal-overlay">
@@ -183,7 +192,6 @@
   const auth = getAuth(app);
   signInAnonymously(auth).then(() => {
       console.log("Logged in anonymously");
-      // script.js で定義された関数を呼び出す
       if (typeof initApp === 'function') {
           initApp();
       }
@@ -192,7 +200,6 @@
       alert(`エラーが発生しました\nCode: ${error.code}\nMessage: ${error.message}`);
   });
 
-  // script.jsからも使えるようにグローバルにセット
   window.db = db;
   window.set = set;
   window.ref = ref;
