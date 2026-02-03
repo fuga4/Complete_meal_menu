@@ -9,6 +9,7 @@
   --color-success: #34C759; 
   --color-danger: #FF3B30;  
   --color-neutral: #E0E0E0; 
+  --color-warning: #FF9500;
   
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --letter-spacing: 0.03em; 
@@ -207,7 +208,42 @@ body:not([data-theme="minimal"]) .tab-btn.active {
     background: linear-gradient(to bottom, transparent, var(--accent-light));
 }
 
+/* ★追加：ステータスバーのスタイル */
+.status-bar {
+  background: var(--bg-card);
+  padding: 6px 15px;
+  font-size: 0.8rem;
+  color: var(--text-sub);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  transition: all 0.3s;
+  font-weight: 600;
+}
+.status-bar.is-today {
+  background-color: #E8F5E9; /* 薄い緑 */
+  color: #2E7D32;
+}
+.status-bar.is-old {
+  background-color: #FFF3E0; /* 薄いオレンジ */
+  color: #EF6C00;
+}
+
 .container { padding: 15px; }
+
+/* 過去データ表示時のグレーアウト（薄くする） */
+.container.data-old {
+  opacity: 0.6;
+  filter: grayscale(0.5);
+  transition: all 0.5s;
+}
+/* 操作したら戻るように */
+.container.data-old:active, .container.data-old:focus-within {
+  opacity: 1;
+  filter: grayscale(0);
+}
 
 .category-title {
   font-size: 0.85rem; color: var(--text-sub); margin: 20px 0 8px 2px; font-weight: 700;
