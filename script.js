@@ -13,7 +13,6 @@ let weatherCode = null;
 let touchStartX = 0;
 let touchStartY = 0;
 
-// ★追加：日付の境界線（朝4時）
 const DAY_SWITCH_HOUR = 4;
 
 // グローバル関数として公開
@@ -30,7 +29,6 @@ window.initApp = function() {
       }
   }
 
-  // 時間帯による食事の自動切り替え（朝4時〜14時は朝食、それ以外は夕食）
   const currentHour = new Date().getHours();
   if (currentHour >= 4 && currentHour < 14) {
       currentMeal = 'morning';
@@ -136,7 +134,9 @@ window.updateCalc = function() {
         validRows.forEach(item => {
             if (item.unitPrice === minUnit) {
                 item.row.classList.add('is-cheapest');
-                item.row.querySelector('.calc-result').innerHTML = `🏆 ${item.unitPrice.toFixed(2)}`;
+                // ★変更：🏆をアイコンフォントに変更
+                item.row.querySelector('.calc-result').innerHTML = 
+                    `<span class="material-symbols-rounded" style="font-size:1rem; vertical-align:text-bottom; color:var(--color-danger);">trophy</span> ${item.unitPrice.toFixed(2)}`;
             }
         });
     }
@@ -166,13 +166,14 @@ async function getWeather() {
     const daily = data.daily;
     weatherCode = daily.weathercode[targetIndex]; 
     const weatherText = getWmoWeatherText(weatherCode);
-    const weatherIcon = getWmoWeatherIcon(weatherCode);
+    const weatherIcon = getWmoWeatherIconName(weatherCode);
     const maxTemp = daily.temperature_2m_max[targetIndex];
     const minTemp = daily.temperature_2m_min[targetIndex];
     const pop = daily.precipitation_probability_max[targetIndex];
 
     document.getElementById('weather-date-label').textContent = targetLabel + "：";
     document.getElementById('weather-text').textContent = weatherText;
+    document.getElementById('weather-icon').textContent = weatherIcon;
     document.getElementById('weather-pop').textContent = (pop !== null) ? pop : "--";
     document.getElementById('temp-min').textContent = (minTemp !== null) ? Math.round(minTemp) : "--";
     document.getElementById('temp-max').textContent = (maxTemp !== null) ? Math.round(maxTemp) : "--";
@@ -268,14 +269,14 @@ function startSnowAnimation(container) {
     }, 200);
 }
 
-function getWmoWeatherIcon(code) {
-  if (code === 0) return "☀️";
-  if ([1, 2, 3].includes(code)) return "⛅️";
-  if ([45, 48].includes(code)) return "🌫️";
-  if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return "☂️";
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return "☃️";
-  if (code >= 95) return "⚡️";
-  return "☁️";
+function getWmoWeatherIconName(code) {
+  if (code === 0) return "sunny";
+  if ([1, 2, 3].includes(code)) return "partly_cloudy_day";
+  if ([45, 48].includes(code)) return "foggy";
+  if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return "rainy";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "ac_unit";
+  if (code >= 95) return "thunderstorm";
+  return "cloud";
 }
 
 function getWmoWeatherText(code) {
@@ -302,17 +303,14 @@ function setupRealtimeListener() {
     } else {
       currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
     }
-    // データ取得時にステータス表示を更新
     updateStatusIndicator(currentFirebaseData);
     renderPage(); 
     updateChartAndScore(); 
   });
 }
 
-// ★重要：生活リズムに合わせた日付判定（朝4時区切り）
 function getLogicalDate() {
     const now = new Date();
-    // 4時より前なら日付を1日戻す（深夜25時などは「昨日」として扱う）
     if (now.getHours() < DAY_SWITCH_HOUR) {
         now.setDate(now.getDate() - 1);
     }
@@ -322,7 +320,6 @@ function getLogicalDate() {
     return `${y}-${m}-${d}`;
 }
 
-// 現在時刻（HH:mm）を取得するヘルパー
 function getCurrentTimeStr() {
     const now = new Date();
     const h = ('0' + now.getHours()).slice(-2);
@@ -330,43 +327,35 @@ function getCurrentTimeStr() {
     return `${h}:${m}`;
 }
 
-// ステータスバー更新ロジック
 function updateStatusIndicator(data) {
     const statusBar = document.getElementById('status-bar');
     const statusIcon = document.getElementById('status-icon');
     const statusText = document.getElementById('status-text');
     const container = document.getElementById('list-container');
 
-    const todayLogical = getLogicalDate(); // 朝4時区切りの「今日」
+    const todayLogical = getLogicalDate();
     const lastUpdatedDate = data ? data.lastUpdatedDate : null;
     const lastUpdatedTime = data ? data.lastUpdatedTime : null;
 
-    // クラスリセット
     statusBar.classList.remove('is-today', 'is-old');
     container.classList.remove('data-old');
 
-    // 日付が一致するか判定
     if (lastUpdatedDate === todayLogical) {
-        // 今日のデータ
         statusBar.classList.add('is-today');
         statusIcon.textContent = 'check_circle';
-        // 時刻があれば表示
         const timeStr = lastUpdatedTime ? ` (${lastUpdatedTime} 更新)` : '';
         statusText.textContent = `今日の記録${timeStr}`;
     } else {
-        // 過去または未入力
         statusBar.classList.add('is-old');
         statusIcon.textContent = 'error'; 
         
         let dateMsg = "未入力";
         if(lastUpdatedDate) {
-            // 日付を短く表示 (YYYY-MM-DD -> M/D)
             const parts = lastUpdatedDate.split('-');
             if(parts.length === 3) dateMsg = `データは ${parseInt(parts[1])}/${parseInt(parts[2])} のもの`;
         }
         
         statusText.textContent = dateMsg;
-        // 画面全体を少し薄くして「古い」ことを強調
         container.classList.add('data-old');
     }
 }
@@ -514,7 +503,8 @@ function initChart() {
   myChart = new Chart(ctx, {
     type: 'radar',
     data: {
-      labels: ['💛エネルギー', '❤️からだ作り', '💚調子を整える'],
+      // ★変更：絵文字を削除しシンプルなテキストへ
+      labels: ['エネルギー', 'からだ作り', '調子を整える'],
       datasets: [{
         label: '摂取バランス',
         data: [0, 0, 0],
@@ -600,19 +590,20 @@ function updateChartAndScore() {
   
   scoreTextEl.innerHTML = `${totalScore} <span style="font-size:1.2rem;">pt</span>`;
 
+  // ★変更：判定コメントの絵文字をアイコンフォントへ置換
   let comment = "";
   if (totalScore === 0) {
       comment = "何を食べるかな？";
   } else if (totalScore < 5) {
-      comment = "もう少し食べよう！🍙";
+      comment = `もう少し食べよう！<span class="material-symbols-rounded" style="vertical-align: bottom;">rice_bowl</span>`;
   } else if (totalScore < 10) {
-      comment = "良い調子！その調子👍";
+      comment = `良い調子！その調子<span class="material-symbols-rounded" style="vertical-align: bottom;">thumb_up</span>`;
   } else if (totalScore < 15) {
-      comment = "ナイスバランス！素晴らしい✨";
+      comment = `ナイスバランス！素晴らしい<span class="material-symbols-rounded" style="vertical-align: bottom;">auto_awesome</span>`;
   } else {
-      comment = "エネルギー満タン！元気100倍💪";
+      comment = `エネルギー満タン！元気100倍<span class="material-symbols-rounded" style="vertical-align: bottom;">fitness_center</span>`;
   }
-  commentEl.textContent = comment;
+  commentEl.innerHTML = comment;
 }
 
 window.switchUser = function(user) {
@@ -632,7 +623,6 @@ function updateTheme() {
   if(myChart) updateChartAndScore(); 
 }
 
-// ★変更：保存時に日付と時刻を別々に保存
 window.saveData = function() {
   const data = {
     checks: {},
@@ -646,7 +636,6 @@ window.saveData = function() {
     data.checks[itemName] = input.value;
   });
 
-  // 朝4時区切りの論理的な日付を使用
   data.lastUpdatedDate = getLogicalDate();
   data.lastUpdatedTime = getCurrentTimeStr();
 
