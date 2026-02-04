@@ -134,7 +134,6 @@ window.updateCalc = function() {
         validRows.forEach(item => {
             if (item.unitPrice === minUnit) {
                 item.row.classList.add('is-cheapest');
-                // ★変更：🏆をアイコンフォントに変更
                 item.row.querySelector('.calc-result').innerHTML = 
                     `<span class="material-symbols-rounded" style="font-size:1rem; vertical-align:text-bottom; color:var(--color-danger);">trophy</span> ${item.unitPrice.toFixed(2)}`;
             }
@@ -503,7 +502,6 @@ function initChart() {
   myChart = new Chart(ctx, {
     type: 'radar',
     data: {
-      // ★変更：絵文字を削除しシンプルなテキストへ
       labels: ['エネルギー', 'からだ作り', '調子を整える'],
       datasets: [{
         label: '摂取バランス',
@@ -590,18 +588,17 @@ function updateChartAndScore() {
   
   scoreTextEl.innerHTML = `${totalScore} <span style="font-size:1.2rem;">pt</span>`;
 
-  // ★変更：判定コメントの絵文字をアイコンフォントへ置換
   let comment = "";
   if (totalScore === 0) {
       comment = "何を食べるかな？";
   } else if (totalScore < 5) {
-      comment = `もう少し食べよう！<span class="material-symbols-rounded" style="vertical-align: bottom;">rice_bowl</span>`;
+      comment = `もう少し食べよう！<span class="material-symbols-rounded" style="vertical-align: text-bottom;">rice_bowl</span>`;
   } else if (totalScore < 10) {
-      comment = `良い調子！その調子<span class="material-symbols-rounded" style="vertical-align: bottom;">thumb_up</span>`;
+      comment = `良い調子！その調子<span class="material-symbols-rounded" style="vertical-align: text-bottom;">thumb_up</span>`;
   } else if (totalScore < 15) {
-      comment = `ナイスバランス！素晴らしい<span class="material-symbols-rounded" style="vertical-align: bottom;">auto_awesome</span>`;
+      comment = `ナイスバランス！素晴らしい<span class="material-symbols-rounded" style="vertical-align: text-bottom;">auto_awesome</span>`;
   } else {
-      comment = `エネルギー満タン！元気100倍<span class="material-symbols-rounded" style="vertical-align: bottom;">fitness_center</span>`;
+      comment = `エネルギー満タン！元気100倍<span class="material-symbols-rounded" style="vertical-align: text-bottom;">fitness_center</span>`;
   }
   commentEl.innerHTML = comment;
 }
@@ -673,8 +670,20 @@ window.resetAll = function() {
   window.set(window.ref(window.db, dataPath), null);
 }
 
+// ★追加：トーストエレメントの自動復元
+function ensureToastElement() {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+    }
+    return toast;
+}
+
 function showToast(message) {
-  const toast = document.getElementById('toast');
+  const toast = ensureToastElement();
   toast.textContent = message;
   toast.className = 'toast show';
   
