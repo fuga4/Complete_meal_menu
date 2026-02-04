@@ -13,10 +13,12 @@
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=2">
 
 </head>
 <body data-user="boy" data-theme="minimal">
+
+<div id="toast" class="toast"></div>
 
 <div id="weather-sticky-badge" class="weather-badge" style="display:none;" 
      onclick="window.open('https://weathernews.jp/onebox/35.72301407452235/139.61712889160367/', '_blank')">
@@ -181,7 +183,7 @@
   </div>
 </div>
 
-<script src="script.js"></script>
+<script src="script.js?v=2"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
