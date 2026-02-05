@@ -194,22 +194,29 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   
-  const auth = getAuth(app);
-  signInAnonymously(auth).then(() => {
-      console.log("Logged in anonymously");
-      if (typeof initApp === 'function') {
-          initApp();
-      }
-  }).catch((error) => {
-      console.error("Login failed", error);
-      alert(`エラーが発生しました\nCode: ${error.code}\nMessage: ${error.message}`);
-  });
-
+  // ★重要：グローバル変数への割り当てを先に行う
   window.db = db;
   window.set = set;
   window.ref = ref;
   window.onValue = onValue;
   window.get = get;
+
+  const auth = getAuth(app);
+  signInAnonymously(auth).then(() => {
+      console.log("Logged in anonymously");
+      // script.jsの読み込みを待って実行
+      if (typeof initApp === 'function') {
+          initApp();
+      } else {
+          // script.jsの読み込み遅延対策
+          window.addEventListener('load', () => {
+              if (typeof initApp === 'function') initApp();
+          });
+      }
+  }).catch((error) => {
+      console.error("Login failed", error);
+      alert(`エラーが発生しました\nCode: ${error.code}\nMessage: ${error.message}`);
+  });
 </script>
 
 </body>
