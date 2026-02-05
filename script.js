@@ -6,6 +6,7 @@ let currentTheme = 'minimal';
 let menuData = { morning: {}, dinner: {} }; 
 let nutritionMap = {}; 
 let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
+let historyData = {}; // ★追加：履歴データ保持用
 let myChart = null;
 let weatherAnimInterval = null;
 let weatherCode = null; 
@@ -295,17 +296,30 @@ function setupRealtimeListener() {
   const dataPath = `users/${currentUser}/${currentMeal}`;
   const dataRef = window.ref(window.db, dataPath);
 
-  window.onValue(dataRef, (snapshot) => {
-    const val = snapshot.val();
-    if (val) {
-      currentFirebaseData = val;
-    } else {
-      currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
-    }
-    updateStatusIndicator(currentFirebaseData);
-    renderPage(); 
-    updateChartAndScore(); 
+  // ★追加：履歴データのリスナー
+  const historyPath = `history/${currentUser}`;
+  const historyRef = window.ref(window.db, historyPath);
+
+  // 履歴を先に読み込む
+  window.onValue(historyRef, (snapshot) => {
+      historyData = snapshot.val() || {};
+      // 履歴取得後にメインデータを読み込んで描画
+      loadMainData(dataRef);
   });
+}
+
+function loadMainData(dataRef) {
+    window.onValue(dataRef, (snapshot) => {
+        const val = snapshot.val();
+        if (val) {
+          currentFirebaseData = val;
+        } else {
+          currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
+        }
+        updateStatusIndicator(currentFirebaseData);
+        renderPage(); 
+        updateChartAndScore(); 
+    });
 }
 
 function getLogicalDate() {
@@ -464,6 +478,35 @@ function renderPage() {
   if (document.activeElement !== olInput) olInput.value = savedData.otherLeft || '';
 }
 
+// ★追加：週カレンダー生成ロジック
+function getWeekDates() {
+    const now = new Date();
+    // 朝4時区切りのロジックを適用
+    if (now.getHours() < DAY_SWITCH_HOUR) {
+        now.setDate(now.getDate() - 1);
+    }
+    const currentDay = now.getDay(); // 0:Sun, 1:Mon...
+    const dates = [];
+    
+    // 今週の日曜日を基準にする
+    const sunday = new Date(now);
+    sunday.setDate(now.getDate() - currentDay);
+
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(sunday);
+        d.setDate(sunday.getDate() + i);
+        const y = d.getFullYear();
+        const m = ('0' + (d.getMonth() + 1)).slice(-2);
+        const day = ('0' + d.getDate()).slice(-2);
+        dates.push({
+            dateStr: `${y}-${m}-${day}`,
+            label: ['日','月','火','水','木','金','土'][i],
+            isToday: i === currentDay
+        });
+    }
+    return dates;
+}
+
 function createItemRow(itemObj, checks) {
     const row = document.createElement('div');
     row.className = 'item-row';
@@ -476,20 +519,39 @@ function createItemRow(itemObj, checks) {
         iconHtml = `<span class="material-symbols-rounded menu-icon-disp" style="color:${itemObj.color};">${itemObj.icon}</span>`;
     }
 
+    // ★追加：履歴表示用HTML生成
+    const weekDates = getWeekDates();
+    let historyHtml = '<div class="history-week">';
+    
+    // アイテムごとの履歴データを取得
+    // data structure: history/{user}/{itemName}/{dateStr} = true
+    const itemHistory = (historyData[itemName] || {});
+
+    weekDates.forEach(d => {
+        const isAte = itemHistory[d.dateStr] === true;
+        const ateClass = isAte ? 'ate' : '';
+        const todayClass = d.isToday ? 'today' : '';
+        historyHtml += `<span class="history-day ${ateClass} ${todayClass}">${d.label}</span>`;
+    });
+    historyHtml += '</div>';
+
     row.innerHTML = `
       <div class="item-name">
-        ${iconHtml}
-        <span>${itemName}</span>
+        <div class="item-name-top">
+          ${iconHtml}
+          <span>${itemName}</span>
+        </div>
+        ${historyHtml}
       </div>
       <div class="options">
         <label><input type="radio" name="${radioName}" value="finish" 
-          ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData()">
+          ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData(this)">
           <span class="radio-label">完食</span></label>
         <label><input type="radio" name="${radioName}" value="left" 
-          ${savedVal === 'left' ? 'checked' : ''} onchange="saveData()">
+          ${savedVal === 'left' ? 'checked' : ''} onchange="saveData(this)">
           <span class="radio-label">残し</span></label>
         <label><input type="radio" name="${radioName}" value="none" 
-          ${savedVal === 'none' ? 'checked' : ''} onchange="saveData()">
+          ${savedVal === 'none' ? 'checked' : ''} onchange="saveData(this)">
           <span class="radio-label">―</span></label>
       </div>
     `;
@@ -592,13 +654,13 @@ function updateChartAndScore() {
   if (totalScore === 0) {
       comment = "何を食べるかな？";
   } else if (totalScore < 5) {
-      comment = `もう少し食べよう！<span class="material-symbols-rounded" style="vertical-align: text-bottom;">rice_bowl</span>`;
+      comment = `もう少し食べよう！<span class="material-symbols-rounded" style="vertical-align: bottom;">rice_bowl</span>`;
   } else if (totalScore < 10) {
-      comment = `良い調子！その調子<span class="material-symbols-rounded" style="vertical-align: text-bottom;">thumb_up</span>`;
+      comment = `良い調子！その調子<span class="material-symbols-rounded" style="vertical-align: bottom;">thumb_up</span>`;
   } else if (totalScore < 15) {
-      comment = `ナイスバランス！素晴らしい<span class="material-symbols-rounded" style="vertical-align: text-bottom;">auto_awesome</span>`;
+      comment = `ナイスバランス！素晴らしい<span class="material-symbols-rounded" style="vertical-align: bottom;">auto_awesome</span>`;
   } else {
-      comment = `エネルギー満タン！元気100倍<span class="material-symbols-rounded" style="vertical-align: text-bottom;">fitness_center</span>`;
+      comment = `エネルギー満タン！元気100倍<span class="material-symbols-rounded" style="vertical-align: bottom;">fitness_center</span>`;
   }
   commentEl.innerHTML = comment;
 }
@@ -620,7 +682,8 @@ function updateTheme() {
   if(myChart) updateChartAndScore(); 
 }
 
-window.saveData = function() {
+// ★変更：引数でinput要素を受け取り、履歴処理も行う
+window.saveData = function(targetInput) {
   const data = {
     checks: {},
     otherFinish: document.getElementById('other-finish').value,
@@ -638,6 +701,22 @@ window.saveData = function() {
 
   const dataPath = `users/${currentUser}/${currentMeal}`;
   window.set(window.ref(window.db, dataPath), data);
+
+  // ★追加：履歴データの更新処理 (リアルタイム保存)
+  if (targetInput) {
+      const changedItemName = targetInput.name.replace('radio_', '');
+      const changedValue = targetInput.value;
+      const todayDate = getLogicalDate();
+      
+      const historyPath = `history/${currentUser}/${changedItemName}/${todayDate}`;
+      const historyRef = window.ref(window.db, historyPath);
+
+      if (changedValue === 'finish') {
+          window.set(historyRef, true);
+      } else {
+          window.set(historyRef, null); // 完食以外なら削除
+      }
+  }
 }
 
 window.showResetModal = function() {
@@ -670,20 +749,8 @@ window.resetAll = function() {
   window.set(window.ref(window.db, dataPath), null);
 }
 
-// ★追加：トーストエレメントの自動復元
-function ensureToastElement() {
-    let toast = document.getElementById('toast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'toast';
-        toast.className = 'toast';
-        document.body.appendChild(toast);
-    }
-    return toast;
-}
-
 function showToast(message) {
-  const toast = ensureToastElement();
+  const toast = document.getElementById('toast');
   toast.textContent = message;
   toast.className = 'toast show';
   
