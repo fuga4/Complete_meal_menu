@@ -5,8 +5,10 @@ let currentMeal = 'morning';
 let currentTheme = 'minimal'; 
 let menuData = { morning: {}, dinner: {} }; 
 let nutritionMap = {}; 
+// データ初期値
 let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
-let historyData = {}; // ★追加：履歴データ保持用
+let historyData = {}; 
+
 let myChart = null;
 let weatherAnimInterval = null;
 let weatherCode = null; 
@@ -16,8 +18,10 @@ let touchStartY = 0;
 
 const DAY_SWITCH_HOUR = 4;
 
-// グローバル関数として公開
+// --- 初期化フロー ---
 window.initApp = function() {
+  console.log("App initializing..."); // デバッグ用
+
   const lastUser = localStorage.getItem('fc_last_user');
   if(lastUser) currentUser = lastUser;
 
@@ -30,6 +34,7 @@ window.initApp = function() {
       }
   }
 
+  // 時間帯判定
   const currentHour = new Date().getHours();
   if (currentHour >= 4 && currentHour < 14) {
       currentMeal = 'morning';
@@ -38,12 +43,21 @@ window.initApp = function() {
   }
 
   updateTheme(); 
+  
+  // CSV読み込み後にFirebaseリスナーを開始
   loadMenuCsv().then(() => {
     initChart();
-    setupRealtimeListener(); 
     getWeather(); 
     initCalc();
     setupSwipeListener(); 
+    
+    // Firebaseの準備ができているか確認してからリスナー開始
+    if (window.db) {
+        setupRealtimeListener();
+    } else {
+        console.error("Firebase DB not ready yet.");
+        alert("データベース接続に失敗しました。リロードしてください。");
+    }
   });
 }
 
@@ -51,20 +65,17 @@ window.initApp = function() {
 window.switchTheme = function(themeName) {
     currentTheme = themeName;
     localStorage.setItem('fc_theme', themeName);
-    
     document.body.setAttribute('data-theme', themeName);
     
     document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
     const activeBtn = document.getElementById(`theme-btn-${themeName}`);
     if(activeBtn) activeBtn.classList.add('active');
 
-    if (weatherCode !== null) {
-        applyWeatherEffect(weatherCode);
-    }
-    
+    if (weatherCode !== null) applyWeatherEffect(weatherCode);
     if(myChart) updateChartAndScore();
 }
 
+// --- イベントリスナー ---
 function setupSwipeListener() {
   document.addEventListener('touchstart', (e) => {
       touchStartX = e.touches[0].clientX;
@@ -81,11 +92,8 @@ function setupSwipeListener() {
 function handleSwipe(startX, startY, endX, endY) {
     const diffX = endX - startX;
     const diffY = endY - startY;
-    const threshold = 50; 
-
     if (Math.abs(diffY) > Math.abs(diffX)) return;
-
-    if (Math.abs(diffX) > threshold) {
+    if (Math.abs(diffX) > 50) {
         if (diffX > 0) {
             if (currentUser === 'girl') switchUser('boy');
         } else {
@@ -94,8 +102,10 @@ function handleSwipe(startX, startY, endX, endY) {
     }
 }
 
+// --- 計算機 ---
 function initCalc() {
     const tbody = document.getElementById('calc-body');
+    if(!tbody) return;
     tbody.innerHTML = '';
     for (let i = 0; i < 4; i++) {
         const row = document.createElement('tr');
@@ -148,32 +158,29 @@ window.clearCalc = function() {
     window.updateCalc();
 };
 
+// --- 天気 ---
 async function getWeather() {
   try {
     const url = "https://api.open-meteo.com/v1/forecast?latitude=35.6995&longitude=139.6355&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo";
-    
     const res = await fetch(url);
     const data = await res.json();
 
-    if (!data || !data.daily) throw new Error("No data");
+    if (!data || !data.daily) return;
 
     const currentHour = new Date().getHours();
     const isPm = currentHour >= 12;
-    
     const targetIndex = isPm ? 1 : 0;
     const targetLabel = isPm ? "明日" : "今日";
 
     const daily = data.daily;
     weatherCode = daily.weathercode[targetIndex]; 
-    const weatherText = getWmoWeatherText(weatherCode);
-    const weatherIcon = getWmoWeatherIconName(weatherCode);
     const maxTemp = daily.temperature_2m_max[targetIndex];
     const minTemp = daily.temperature_2m_min[targetIndex];
     const pop = daily.precipitation_probability_max[targetIndex];
 
     document.getElementById('weather-date-label').textContent = targetLabel + "：";
-    document.getElementById('weather-text').textContent = weatherText;
-    document.getElementById('weather-icon').textContent = weatherIcon;
+    document.getElementById('weather-text').textContent = getWmoWeatherText(weatherCode);
+    document.getElementById('weather-icon').textContent = getWmoWeatherIconName(weatherCode);
     document.getElementById('weather-pop').textContent = (pop !== null) ? pop : "--";
     document.getElementById('temp-min').textContent = (minTemp !== null) ? Math.round(minTemp) : "--";
     document.getElementById('temp-max').textContent = (maxTemp !== null) ? Math.round(maxTemp) : "--";
@@ -191,23 +198,16 @@ async function getWeather() {
 function applyWeatherEffect(code) {
     const body = document.body;
     const container = document.getElementById('weather-animation-container');
-    
     body.classList.remove('weather-sunny', 'weather-cloudy');
     clearWeatherAnimation();
 
     if (currentTheme !== 'glass') {
-      if (code === 0 || code === 1) { 
-          body.classList.add('weather-sunny');
-      } else if (code <= 3 || code === 45 || code === 48) { 
-          body.classList.add('weather-cloudy');
-      }
+      if (code === 0 || code === 1) body.classList.add('weather-sunny');
+      else if (code <= 3 || code === 45 || code === 48) body.classList.add('weather-cloudy');
     }
 
-    if ([71, 73, 75, 77, 85, 86].includes(code)) { 
-        startSnowAnimation(container);
-    } else if (code > 3) { 
-        startRainAnimation(container);
-    }
+    if ([71, 73, 75, 77, 85, 86].includes(code)) startSnowAnimation(container);
+    else if (code > 3) startRainAnimation(container);
 }
 
 function updateWeatherBadge(code, maxTemp) {
@@ -243,7 +243,8 @@ function clearWeatherAnimation() {
         clearInterval(weatherAnimInterval);
         weatherAnimInterval = null;
     }
-    document.getElementById('weather-animation-container').innerHTML = '';
+    const c = document.getElementById('weather-animation-container');
+    if(c) c.innerHTML = '';
 }
 
 function startRainAnimation(container) {
@@ -292,36 +293,40 @@ function getWmoWeatherText(code) {
   return "--";
 }
 
+// --- Firebase リスナー設定 ---
 function setupRealtimeListener() {
+  if (!window.db || !window.ref || !window.onValue) {
+      console.error("Firebase not initialized in window scope.");
+      return;
+  }
+
   const dataPath = `users/${currentUser}/${currentMeal}`;
   const dataRef = window.ref(window.db, dataPath);
 
-  // ★追加：履歴データのリスナー
   const historyPath = `history/${currentUser}`;
   const historyRef = window.ref(window.db, historyPath);
 
-  // 履歴を先に読み込む
+  // リスナー1：履歴データ
   window.onValue(historyRef, (snapshot) => {
       historyData = snapshot.val() || {};
-      // 履歴取得後にメインデータを読み込んで描画
-      loadMainData(dataRef);
+      renderPage(); // 履歴が変わったら再描画
+  });
+
+  // リスナー2：当日の食事データ
+  window.onValue(dataRef, (snapshot) => {
+      const val = snapshot.val();
+      if (val) {
+        currentFirebaseData = val;
+      } else {
+        currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
+      }
+      updateStatusIndicator(currentFirebaseData);
+      renderPage(); 
+      updateChartAndScore(); 
   });
 }
 
-function loadMainData(dataRef) {
-    window.onValue(dataRef, (snapshot) => {
-        const val = snapshot.val();
-        if (val) {
-          currentFirebaseData = val;
-        } else {
-          currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
-        }
-        updateStatusIndicator(currentFirebaseData);
-        renderPage(); 
-        updateChartAndScore(); 
-    });
-}
-
+// --- 日付・時間ロジック ---
 function getLogicalDate() {
     const now = new Date();
     if (now.getHours() < DAY_SWITCH_HOUR) {
@@ -373,6 +378,7 @@ function updateStatusIndicator(data) {
     }
 }
 
+// --- CSV読み込み ---
 async function loadMenuCsv() {
   try {
     const response = await fetch('menu.csv?' + new Date().getTime());
@@ -416,9 +422,11 @@ function parseCsv(text) {
   });
 }
 
+// --- 画面描画 ---
 function renderPage() {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(`tab-${currentMeal}`).classList.add('active');
+  const activeTab = document.getElementById(`tab-${currentMeal}`);
+  if(activeTab) activeTab.classList.add('active');
   
   const partnerBtn = document.getElementById('btn-partner-copy');
   partnerBtn.innerHTML = `<span class="material-symbols-rounded">content_copy</span> コピー`;
@@ -441,13 +449,14 @@ function renderPage() {
     const card = document.createElement('div');
     card.className = 'list-card';
 
+    // サブカテゴリ無し
     const noSubItems = items.filter(i => !i.sub);
     noSubItems.forEach(itemObj => {
         card.appendChild(createItemRow(itemObj, checks));
     });
 
+    // サブカテゴリ有り
     let subCategories = [...new Set(items.filter(i => i.sub).map(i => i.sub))];
-    
     const ORDER_LIST = ["豆・卵・乳", "芋・栗・南瓜", "おかず・粉もの", "野菜・きのこ"];
     subCategories.sort((a, b) => {
         let idxA = ORDER_LIST.indexOf(a);
@@ -474,21 +483,19 @@ function renderPage() {
 
   const ofInput = document.getElementById('other-finish');
   const olInput = document.getElementById('other-left');
-  if (document.activeElement !== ofInput) ofInput.value = savedData.otherFinish || '';
-  if (document.activeElement !== olInput) olInput.value = savedData.otherLeft || '';
+  if (ofInput && document.activeElement !== ofInput) ofInput.value = savedData.otherFinish || '';
+  if (olInput && document.activeElement !== olInput) olInput.value = savedData.otherLeft || '';
 }
 
-// ★追加：週カレンダー生成ロジック
+// 週カレンダー生成
 function getWeekDates() {
     const now = new Date();
-    // 朝4時区切りのロジックを適用
     if (now.getHours() < DAY_SWITCH_HOUR) {
         now.setDate(now.getDate() - 1);
     }
-    const currentDay = now.getDay(); // 0:Sun, 1:Mon...
+    const currentDay = now.getDay();
     const dates = [];
     
-    // 今週の日曜日を基準にする
     const sunday = new Date(now);
     sunday.setDate(now.getDate() - currentDay);
 
@@ -519,12 +526,8 @@ function createItemRow(itemObj, checks) {
         iconHtml = `<span class="material-symbols-rounded menu-icon-disp" style="color:${itemObj.color};">${itemObj.icon}</span>`;
     }
 
-    // ★追加：履歴表示用HTML生成
     const weekDates = getWeekDates();
     let historyHtml = '<div class="history-week">';
-    
-    // アイテムごとの履歴データを取得
-    // data structure: history/{user}/{itemName}/{dateStr} = true
     const itemHistory = (historyData[itemName] || {});
 
     weekDates.forEach(d => {
@@ -558,6 +561,7 @@ function createItemRow(itemObj, checks) {
     return row;
 }
 
+// --- グラフ ---
 function initChart() {
   const ctx = document.getElementById('nutritionChart').getContext('2d');
   
@@ -654,27 +658,34 @@ function updateChartAndScore() {
   if (totalScore === 0) {
       comment = "何を食べるかな？";
   } else if (totalScore < 5) {
-      comment = `もう少し食べよう！<span class="material-symbols-rounded" style="vertical-align: bottom;">rice_bowl</span>`;
+      comment = `もう少し食べよう！<span class="material-symbols-rounded" style="vertical-align: text-bottom;">rice_bowl</span>`;
   } else if (totalScore < 10) {
-      comment = `良い調子！その調子<span class="material-symbols-rounded" style="vertical-align: bottom;">thumb_up</span>`;
+      comment = `良い調子！その調子<span class="material-symbols-rounded" style="vertical-align: text-bottom;">thumb_up</span>`;
   } else if (totalScore < 15) {
-      comment = `ナイスバランス！素晴らしい<span class="material-symbols-rounded" style="vertical-align: bottom;">auto_awesome</span>`;
+      comment = `ナイスバランス！素晴らしい<span class="material-symbols-rounded" style="vertical-align: text-bottom;">auto_awesome</span>`;
   } else {
-      comment = `エネルギー満タン！元気100倍<span class="material-symbols-rounded" style="vertical-align: bottom;">fitness_center</span>`;
+      comment = `エネルギー満タン！元気100倍<span class="material-symbols-rounded" style="vertical-align: text-bottom;">fitness_center</span>`;
   }
   commentEl.innerHTML = comment;
 }
 
+// --- ユーザー操作系 ---
 window.switchUser = function(user) {
   currentUser = user;
   localStorage.setItem('fc_last_user', user);
   updateTheme();
-  setupRealtimeListener(); 
+  
+  // ユーザー切り替え時はリスナーを再設定
+  if (window.db) {
+      setupRealtimeListener();
+  }
 }
 
 window.switchMeal = function(meal) {
   currentMeal = meal;
-  setupRealtimeListener(); 
+  if (window.db) {
+      setupRealtimeListener();
+  }
 }
 
 function updateTheme() {
@@ -682,7 +693,6 @@ function updateTheme() {
   if(myChart) updateChartAndScore(); 
 }
 
-// ★変更：引数でinput要素を受け取り、履歴処理も行う
 window.saveData = function(targetInput) {
   const data = {
     checks: {},
@@ -702,7 +712,7 @@ window.saveData = function(targetInput) {
   const dataPath = `users/${currentUser}/${currentMeal}`;
   window.set(window.ref(window.db, dataPath), data);
 
-  // ★追加：履歴データの更新処理 (リアルタイム保存)
+  // 履歴更新
   if (targetInput) {
       const changedItemName = targetInput.name.replace('radio_', '');
       const changedValue = targetInput.value;
@@ -714,7 +724,7 @@ window.saveData = function(targetInput) {
       if (changedValue === 'finish') {
           window.set(historyRef, true);
       } else {
-          window.set(historyRef, null); // 完食以外なら削除
+          window.set(historyRef, null);
       }
   }
 }
@@ -749,8 +759,20 @@ window.resetAll = function() {
   window.set(window.ref(window.db, dataPath), null);
 }
 
+// トースト通知
+function ensureToastElement() {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+    }
+    return toast;
+}
+
 function showToast(message) {
-  const toast = document.getElementById('toast');
+  const toast = ensureToastElement();
   toast.textContent = message;
   toast.className = 'toast show';
   
