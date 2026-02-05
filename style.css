@@ -232,13 +232,11 @@ body:not([data-theme="minimal"]) .tab-btn.active {
 
 .container { padding: 15px; }
 
-/* 過去データ表示時のグレーアウト（薄くする） */
 .container.data-old {
   opacity: 0.6;
   filter: grayscale(0.5);
   transition: all 0.5s;
 }
-/* 操作したら戻るように */
 .container.data-old:active, .container.data-old:focus-within {
   opacity: 1;
   filter: grayscale(0);
@@ -269,25 +267,63 @@ body:not([data-theme="minimal"]) .tab-btn.active {
 
 .item-row {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 10px 15px; 
+  padding: 8px 15px; /* ★変更：高さ調整のため少し狭く */
   border-bottom: 1px solid rgba(0,0,0,0.03);
-  min-height: 44px;
+  min-height: 48px; /* ★変更：2行になってもいいように少し確保 */
 }
 .item-row:last-child { border-bottom: none; }
 
+/* ★変更：名前と履歴を縦に並べる設定 */
 .item-name { 
   font-weight: 600; font-size: 0.9rem; color: var(--text-main); 
-  flex: 1; min-width: 0; word-break: break-all; line-height: 1.3;
+  flex: 1; min-width: 0; word-break: break-all; line-height: 1.2;
+  display: flex; flex-direction: column; /* 縦並び */
+  justify-content: center;
+}
+
+/* 名前部分のコンテナ（アイコンとテキスト） */
+.item-name-top {
   display: flex; align-items: center;
 }
 
 .menu-icon-disp {
-  font-size: 1.2rem; margin-right: 8px; 
-  width: 24px; text-align: center;
+  font-size: 1.1rem; margin-right: 6px; 
+  width: 20px; text-align: center;
   flex-shrink: 0;
 }
 
-.options { flex-shrink: 0; display: flex; gap: 6px; }
+/* ★追加：履歴表示エリア（曜日） */
+.history-week {
+  display: flex;
+  gap: 3px;
+  margin-top: 2px;
+  margin-left: 26px; /* アイコン分ずらす */
+}
+.history-day {
+  font-size: 9px;
+  color: #D1D1D6; /* デフォルトは薄いグレー */
+  font-weight: 500;
+  width: 10px;
+  text-align: center;
+}
+/* 食べた日 */
+.history-day.ate {
+  color: var(--color-success); /* 緑色 */
+  font-weight: 800;
+}
+/* 今日の曜日（強調） */
+.history-day.today {
+  color: var(--text-main);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--accent);
+}
+/* 今日かつ食べた */
+.history-day.today.ate {
+  color: var(--color-success);
+}
+
+.options { flex-shrink: 0; display: flex; gap: 6px; align-items: center; }
 
 .radio-label {
   padding: 6px 0; width: 44px; border-radius: 6px; border: 1px solid transparent;
@@ -403,7 +439,6 @@ body[data-theme="glass"] .score-area::before {
 }
 body[data-theme="minimal"] .theme-btn.active { background: var(--text-main); color: white; box-shadow: none; }
 
-/* フッターボタンのレイアウト調整 */
 .fixed-footer {
   position: fixed; bottom: 0; left: 0; width: 100%;
   background: var(--bg-header); backdrop-filter: blur(20px);
@@ -482,7 +517,7 @@ body[data-theme="minimal"] .theme-btn.active { background: var(--text-main); col
 .badge-rainy { background-color: #E3F2FD; color: #1976D2; border-color: #90CAF9; }
 .badge-snow { background-color: #FAFAFA; color: #5C6BC0; border-color: #E8EAF6; }
 
-/* ★変更：トースト通知のz-indexを9999に */
+/* トースト通知 */
 .toast {
   visibility: hidden;
   min-width: 200px;
