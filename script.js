@@ -5,7 +5,7 @@ let currentMeal = 'morning';
 let currentTheme = 'minimal'; 
 let menuData = { morning: {}, dinner: {} }; 
 let nutritionMap = {}; 
-// データ初期値
+// 初期値
 let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
 let historyData = {}; 
 
@@ -18,9 +18,9 @@ let touchStartY = 0;
 
 const DAY_SWITCH_HOUR = 4;
 
-// --- 初期化フロー ---
+// グローバル関数として公開
 window.initApp = function() {
-  console.log("App initializing..."); // デバッグ用
+  console.log("App initializing...");
 
   const lastUser = localStorage.getItem('fc_last_user');
   if(lastUser) currentUser = lastUser;
@@ -34,7 +34,6 @@ window.initApp = function() {
       }
   }
 
-  // 時間帯判定
   const currentHour = new Date().getHours();
   if (currentHour >= 4 && currentHour < 14) {
       currentMeal = 'morning';
@@ -44,19 +43,21 @@ window.initApp = function() {
 
   updateTheme(); 
   
-  // CSV読み込み後にFirebaseリスナーを開始
+  // CSV読み込み完了後、すぐに画面を描画する
   loadMenuCsv().then(() => {
+    // まず空の状態でもいいので描画してしまう（読み込み中...を消すため）
+    renderPage();
     initChart();
-    getWeather(); 
     initCalc();
+    getWeather(); 
     setupSwipeListener(); 
     
-    // Firebaseの準備ができているか確認してからリスナー開始
+    // その後、Firebaseのリスナーを開始
     if (window.db) {
         setupRealtimeListener();
     } else {
-        console.error("Firebase DB not ready yet.");
-        alert("データベース接続に失敗しました。リロードしてください。");
+        console.error("Firebase DB not ready.");
+        // DB接続がない場合でもアプリとしては動くようにする
     }
   });
 }
@@ -293,26 +294,25 @@ function getWmoWeatherText(code) {
   return "--";
 }
 
-// --- Firebase リスナー設定 ---
+// --- Firebase リスナー ---
+// ★変更：履歴とメインデータのリスナーを独立させる
 function setupRealtimeListener() {
   if (!window.db || !window.ref || !window.onValue) {
-      console.error("Firebase not initialized in window scope.");
+      console.error("Firebase not initialized.");
       return;
   }
 
-  const dataPath = `users/${currentUser}/${currentMeal}`;
-  const dataRef = window.ref(window.db, dataPath);
-
+  // 1. 履歴データのリスナー
   const historyPath = `history/${currentUser}`;
   const historyRef = window.ref(window.db, historyPath);
-
-  // リスナー1：履歴データ
   window.onValue(historyRef, (snapshot) => {
       historyData = snapshot.val() || {};
-      renderPage(); // 履歴が変わったら再描画
+      renderPage(); // 履歴更新時も再描画
   });
 
-  // リスナー2：当日の食事データ
+  // 2. 当日の食事データのリスナー
+  const dataPath = `users/${currentUser}/${currentMeal}`;
+  const dataRef = window.ref(window.db, dataPath);
   window.onValue(dataRef, (snapshot) => {
       const val = snapshot.val();
       if (val) {
@@ -321,12 +321,12 @@ function setupRealtimeListener() {
         currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
       }
       updateStatusIndicator(currentFirebaseData);
-      renderPage(); 
+      renderPage(); // データ更新時も再描画
       updateChartAndScore(); 
   });
 }
 
-// --- 日付・時間ロジック ---
+// --- 日付ロジック ---
 function getLogicalDate() {
     const now = new Date();
     if (now.getHours() < DAY_SWITCH_HOUR) {
@@ -347,6 +347,8 @@ function getCurrentTimeStr() {
 
 function updateStatusIndicator(data) {
     const statusBar = document.getElementById('status-bar');
+    if(!statusBar) return; // エラーガード
+
     const statusIcon = document.getElementById('status-icon');
     const statusText = document.getElementById('status-text');
     const container = document.getElementById('list-container');
@@ -386,7 +388,8 @@ async function loadMenuCsv() {
     const text = await response.text();
     parseCsv(text);
   } catch (e) {
-    document.getElementById('list-container').innerHTML = `<div style="text-align:center; margin-top:20px; color:var(--text-sub);">menu.csv読込エラー</div>`;
+    const c = document.getElementById('list-container');
+    if(c) c.innerHTML = `<div style="text-align:center; margin-top:20px; color:var(--text-sub);">メニュー読込エラー</div>`;
   }
 }
 
@@ -424,14 +427,16 @@ function parseCsv(text) {
 
 // --- 画面描画 ---
 function renderPage() {
+  const container = document.getElementById('list-container');
+  if(!container) return; // エラーガード
+
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   const activeTab = document.getElementById(`tab-${currentMeal}`);
   if(activeTab) activeTab.classList.add('active');
   
   const partnerBtn = document.getElementById('btn-partner-copy');
-  partnerBtn.innerHTML = `<span class="material-symbols-rounded">content_copy</span> コピー`;
+  if(partnerBtn) partnerBtn.innerHTML = `<span class="material-symbols-rounded">content_copy</span> コピー`;
 
-  const container = document.getElementById('list-container');
   container.innerHTML = '';
   
   const savedData = currentFirebaseData;
@@ -563,7 +568,9 @@ function createItemRow(itemObj, checks) {
 
 // --- グラフ ---
 function initChart() {
-  const ctx = document.getElementById('nutritionChart').getContext('2d');
+  const canvas = document.getElementById('nutritionChart');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
   
   myChart = new Chart(ctx, {
     type: 'radar',
@@ -648,11 +655,9 @@ function updateChartAndScore() {
 
   myChart.update();
 
-  const totalScore = totalY + totalR + totalG;
   const scoreTextEl = document.getElementById('score-text');
   const commentEl = document.getElementById('score-comment');
-  
-  scoreTextEl.innerHTML = `${totalScore} <span style="font-size:1.2rem;">pt</span>`;
+  if(scoreTextEl) scoreTextEl.innerHTML = `${totalScore} <span style="font-size:1.2rem;">pt</span>`;
 
   let comment = "";
   if (totalScore === 0) {
@@ -666,7 +671,7 @@ function updateChartAndScore() {
   } else {
       comment = `エネルギー満タン！元気100倍<span class="material-symbols-rounded" style="vertical-align: text-bottom;">fitness_center</span>`;
   }
-  commentEl.innerHTML = comment;
+  if(commentEl) commentEl.innerHTML = comment;
 }
 
 // --- ユーザー操作系 ---
@@ -674,18 +679,12 @@ window.switchUser = function(user) {
   currentUser = user;
   localStorage.setItem('fc_last_user', user);
   updateTheme();
-  
-  // ユーザー切り替え時はリスナーを再設定
-  if (window.db) {
-      setupRealtimeListener();
-  }
+  if (window.db) setupRealtimeListener();
 }
 
 window.switchMeal = function(meal) {
   currentMeal = meal;
-  if (window.db) {
-      setupRealtimeListener();
-  }
+  if (window.db) setupRealtimeListener();
 }
 
 function updateTheme() {
