@@ -13,7 +13,7 @@
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=2">
 
 </head>
 <body data-user="boy" data-theme="minimal">
@@ -69,12 +69,12 @@
 
   <div id="status-bar" class="status-bar">
     <span class="material-symbols-rounded" id="status-icon">history</span>
-    <span id="status-text">起動中...</span>
+    <span id="status-text">確認中...</span>
   </div>
 </div>
 
 <div class="container" id="list-container">
-  <div style="text-align:center; margin-top:50px; color:var(--text-sub);">メニュー読み込み中...</div>
+  <div style="text-align:center; margin-top:50px; color:var(--text-sub);">読み込み中...</div>
 </div>
 
 <div class="container others-area">
@@ -183,7 +183,7 @@
   </div>
 </div>
 
-<script src="script.js?v=7"></script>
+<script src="script.js?v=2"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
@@ -194,32 +194,22 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   
-  // グローバル変数へ
+  const auth = getAuth(app);
+  signInAnonymously(auth).then(() => {
+      console.log("Logged in anonymously");
+      if (typeof initApp === 'function') {
+          initApp();
+      }
+  }).catch((error) => {
+      console.error("Login failed", error);
+      alert(`エラーが発生しました\nCode: ${error.code}\nMessage: ${error.message}`);
+  });
+
   window.db = db;
   window.set = set;
   window.ref = ref;
   window.onValue = onValue;
   window.get = get;
-
-  const auth = getAuth(app);
-  signInAnonymously(auth).then(() => {
-      console.log("Logged in anonymously");
-      // Firebase認証完了後にアプリを開始
-      if (typeof window.initApp === 'function') {
-          window.initApp();
-      } else {
-          // script.jsの読み込み待ち
-          const interval = setInterval(() => {
-              if (typeof window.initApp === 'function') {
-                  clearInterval(interval);
-                  window.initApp();
-              }
-          }, 100);
-      }
-  }).catch((error) => {
-      console.error("Login failed", error);
-      alert("通信エラーが発生しました。リロードしてください。");
-  });
 </script>
 
 </body>
