@@ -22,6 +22,9 @@ let unsubscribeHistory = null;
 
 const DAY_SWITCH_HOUR = 4;
 
+// 描画ごとに一意なIDを付与するためのタイムスタンプ
+let renderTimestamp = Date.now();
+
 // グローバル関数として公開
 window.initApp = function() {
   console.log("App initializing...");
@@ -47,8 +50,9 @@ window.initApp = function() {
 
   updateTheme(); 
   
-  // CSV読み込み後に描画
   loadMenuCsv().finally(() => {
+    // 初回描画
+    refreshRenderTimestamp();
     renderPage();
     initChart();
     initCalc();
@@ -61,6 +65,11 @@ window.initApp = function() {
         console.error("Firebase DB not ready.");
     }
   });
+}
+
+// 描画用タイムスタンプ更新（画面切り替え時に呼ぶ）
+function refreshRenderTimestamp() {
+    renderTimestamp = Date.now();
 }
 
 // テーマ切り替え
@@ -306,10 +315,13 @@ function setupRealtimeListener() {
   if (unsubscribeData) { unsubscribeData(); unsubscribeData = null; }
   if (unsubscribeHistory) { unsubscribeHistory(); unsubscribeHistory = null; }
 
-  // 画面上のデータを一旦クリアして混在を防ぐ
+  // ★画面上のデータを一旦クリアして、UIを空にする
   currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
   historyData = {};
-  
+  refreshRenderTimestamp(); // IDリフレッシュ
+  renderPage(); 
+  updateChartAndScore();
+
   // クロージャで「今だれを見ているか」を固定
   const listeningUser = currentUser;
   const listeningMeal = currentMeal;
@@ -541,8 +553,10 @@ function createItemRow(itemObj, checks) {
     const itemName = itemObj.name;
     const savedVal = checks[itemName] || 'none';
     
-    // ユニークな名前を生成するが、saveDataでの判定には使わない
-    const radioName = `radio_${currentUser}_${itemName}`;
+    // ★重要：レンダリングID（タイムスタンプ）を名前に追加して、
+    // 前回描画されたボタンとは「全くの別物」としてブラウザに認識させる。
+    // これにより、ブラウザのキャッシュや状態維持を強制リセットする。
+    const uniqueId = `radio_${currentUser}_${renderTimestamp}_${itemName}`;
 
     let iconHtml = '';
     if(itemObj.icon && itemObj.color) {
@@ -570,13 +584,13 @@ function createItemRow(itemObj, checks) {
         ${historyHtml}
       </div>
       <div class="options">
-        <label><input type="radio" class="menu-radio" name="${radioName}" data-item="${itemName}" value="finish" 
+        <label><input type="radio" class="menu-radio" name="${uniqueId}" data-item="${itemName}" value="finish" 
           ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
           <span class="radio-label">完食</span></label>
-        <label><input type="radio" class="menu-radio" name="${radioName}" data-item="${itemName}" value="left" 
+        <label><input type="radio" class="menu-radio" name="${uniqueId}" data-item="${itemName}" value="left" 
           ${savedVal === 'left' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
           <span class="radio-label">残し</span></label>
-        <label><input type="radio" class="menu-radio" name="${radioName}" data-item="${itemName}" value="none" 
+        <label><input type="radio" class="menu-radio" name="${uniqueId}" data-item="${itemName}" value="none" 
           ${savedVal === 'none' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
           <span class="radio-label">―</span></label>
       </div>
@@ -698,7 +712,8 @@ window.switchUser = function(user) {
   localStorage.setItem('fc_last_user', user);
   updateTheme();
   
-  // ユーザー切り替え時はリスナー再設定
+  // ユーザー切り替え時は描画IDを更新し、リスナー再設定
+  refreshRenderTimestamp();
   if (window.db) {
       setupRealtimeListener();
   }
@@ -706,6 +721,8 @@ window.switchUser = function(user) {
 
 window.switchMeal = function(meal) {
   currentMeal = meal;
+  // 食事切り替え時も描画IDを更新
+  refreshRenderTimestamp();
   if (window.db) {
       setupRealtimeListener();
   }
@@ -716,9 +733,8 @@ function updateTheme() {
   if(myChart) updateChartAndScore(); 
 }
 
-// ★重要修正：名前チェックを廃止し、画面上のチェックボックスを素直に保存する
+// ★重要：保存先は常に「現在のユーザー」
 window.saveData = function(targetInput, itemName) {
-  // 保存先は常に「現在のユーザー」
   const targetUser = currentUser;
 
   const data = {
@@ -727,15 +743,18 @@ window.saveData = function(targetInput, itemName) {
     otherLeft: document.getElementById('other-left').value
   };
 
-  // 画面上の「メニュー用ラジオボタン」のうち、チェックされているものを全取得
-  // 名前フィルタリング（prefix check）は廃止。
-  // createItemRowで付与した「data-item」属性を信じる。
+  // ★重要：ユニークIDで検索するのではなく、classとdata-itemで検索する
+  // これにより、renderTimestampが変わっても正しく要素を拾える
   const inputs = document.querySelectorAll('.menu-radio:checked');
   
   inputs.forEach(input => {
-      const name = input.getAttribute('data-item'); // item名を取得
-      if (name) {
-          data.checks[name] = input.value;
+      // 念のため、現在表示中のrenderTimestampを持つ要素か確認（古い要素を拾わないため）
+      // input.name には renderTimestamp が含まれている
+      if(input.name.includes(`_${renderTimestamp}_`)) {
+          const name = input.getAttribute('data-item'); 
+          if (name) {
+              data.checks[name] = input.value;
+          }
       }
   });
 
@@ -745,7 +764,7 @@ window.saveData = function(targetInput, itemName) {
   const dataPath = `users/${targetUser}/${currentMeal}`;
   window.set(window.ref(window.db, dataPath), data);
 
-  // 履歴更新 (チェックボックス操作時のみ)
+  // 履歴更新
   if (targetInput && itemName) {
       const changedValue = targetInput.value;
       const todayDate = getLogicalDate();
