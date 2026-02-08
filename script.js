@@ -16,16 +16,15 @@ let weatherCode = null;
 let touchStartX = 0;
 let touchStartY = 0;
 
-// リスナー解除用の関数
+// リスナー解除関数
 let unsubscribe = null;
 
 const DAY_SWITCH_HOUR = 4;
 
-// --- アプリ起動 ---
+// --- 初期化 ---
 window.initApp = function() {
   console.log("App initializing...");
 
-  // 1. ローカル設定の復元
   const lastUser = localStorage.getItem('fc_last_user');
   if(lastUser) currentUser = lastUser;
 
@@ -38,7 +37,6 @@ window.initApp = function() {
       }
   }
 
-  // 2. 時間帯判定
   const currentHour = new Date().getHours();
   if (currentHour >= 4 && currentHour < 14) {
       currentMeal = 'morning';
@@ -48,52 +46,41 @@ window.initApp = function() {
 
   updateTheme(); 
   
-  // 3. メニューデータ読み込み
+  // CSVを読み込む（エラーでも進む）
   loadMenuCsv()
-    .then(() => {
-       console.log("CSV loaded");
-    })
-    .catch((e) => {
-       console.error("CSV Error", e);
-       // エラーでも止まらずに進む
-    })
+    .catch(e => console.error("CSV error:", e))
     .finally(() => {
-       // 4. まずは強制的に画面を描画（これで「読み込み中」が消える）
-       renderPage();
-       initChart();
-       initCalc();
-       getWeather(); 
-       setupSwipeListener(); 
-       
-       // 5. データ接続開始（遅延があっても画面は操作可能）
-       connectToFirebase();
+        // UI構築
+        initChart();
+        initCalc();
+        getWeather(); 
+        setupSwipeListener(); 
+        
+        // データを取得開始
+        connectToFirebase();
     });
 }
 
-// --- Firebase接続管理 ---
+// --- Firebase接続とデータ取得 ---
 function connectToFirebase() {
-    // 既存接続を切断
+    // 1. 古い監視を止める
     if (unsubscribe) {
         unsubscribe();
         unsubscribe = null;
     }
 
-    // 画面データをクリアしてリセット
+    // 2. 画面上のデータを一旦クリアして再描画（★ここが重要：前の人のデータを消す）
     currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
     updateStatusIndicator(null); // ステータスを「確認中」に
-    
-    // UI反映（データ空の状態）
-    renderPage();
-    updateChartAndScore();
+    renderPage();       // 空の状態で描画
+    updateChartAndScore(); // グラフもリセット
 
-    // DBチェック
     if (!window.db) {
-        // まだDB準備できていない場合は、0.5秒後に再トライ
-        setTimeout(connectToFirebase, 500);
+        console.error("Firebase not ready");
         return;
     }
 
-    // 新しいパスに接続
+    // 3. 新しいユーザーのデータを見に行く
     const dataPath = `users/${currentUser}/${currentMeal}`;
     const dataRef = window.ref(window.db, dataPath);
 
@@ -104,11 +91,10 @@ function connectToFirebase() {
         } else {
             currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
         }
-        
-        // データ受信 -> 画面更新
+        // データが届いたら再描画
+        updateStatusIndicator(currentFirebaseData);
         renderPage();
         updateChartAndScore();
-        updateStatusIndicator(currentFirebaseData);
     });
 }
 
@@ -118,17 +104,21 @@ window.switchUser = function(user) {
   currentUser = user;
   localStorage.setItem('fc_last_user', user);
   updateTheme();
-  connectToFirebase(); 
+  
+  // ★切り替えたら即座に再接続（画面クリア含む）
+  connectToFirebase();
 }
 
 // --- 食事切り替え ---
 window.switchMeal = function(meal) {
   if (currentMeal === meal) return;
   currentMeal = meal;
-  connectToFirebase(); 
+  
+  // ★切り替えたら即座に再接続
+  connectToFirebase();
 }
 
-// --- テーマ更新 ---
+// --- テーマ ---
 window.switchTheme = function(themeName) {
     currentTheme = themeName;
     localStorage.setItem('fc_theme', themeName);
@@ -146,7 +136,7 @@ function updateTheme() {
   document.body.setAttribute('data-user', currentUser);
 }
 
-// --- CSV読み込み ---
+// --- CSV ---
 async function loadMenuCsv() {
   const response = await fetch('menu.csv?' + new Date().getTime());
   if (!response.ok) throw new Error("CSV error");
@@ -166,14 +156,15 @@ function parseCsv(text) {
     if (parts.length < 6) return;
     const [m, c, item, y, r, g, sub, icon, color] = parts; 
     const catName = CATEGORY_MAP[c.trim()];
-    
     if (!catName) return;
+    
     const itemName = item.trim();
-    const subCat = sub ? sub.trim() : ''; 
-    const iconName = icon ? icon.trim() : '';
-    const colorCode = color ? color.trim() : '';
-
-    const dataObj = { name: itemName, sub: subCat, icon: iconName, color: colorCode };
+    const dataObj = { 
+        name: itemName, 
+        sub: sub ? sub.trim() : '', 
+        icon: icon ? icon.trim() : '', 
+        color: color ? color.trim() : '' 
+    };
 
     if (m.trim() === '1') menuData.morning[catName].push(dataObj);
     else if (m.trim() === '2') menuData.dinner[catName].push(dataObj);
@@ -186,7 +177,7 @@ function parseCsv(text) {
   });
 }
 
-// --- 画面描画 ---
+// --- 描画 ---
 function renderPage() {
   const container = document.getElementById('list-container');
   if(!container) return; 
@@ -254,7 +245,8 @@ function createItemRow(itemObj, checks) {
     const itemName = itemObj.name;
     const savedVal = checks[itemName] || 'none';
     
-    // ★重要：ユーザーIDを名前に含めてユニーク化（同期バグ防止）
+    // ★重要：ラジオボタンのname属性にユーザーIDを含めてユニークにする
+    // これにより、男の子画面と女の子画面でフォーム部品が物理的に別物になる
     const radioName = `radio_${currentUser}_${itemName}`;
 
     let iconHtml = '';
@@ -282,7 +274,7 @@ function createItemRow(itemObj, checks) {
     return row;
 }
 
-// --- データ保存 ---
+// --- 保存 ---
 window.saveData = function() {
   const data = {
     checks: {},
@@ -335,8 +327,8 @@ function updateStatusIndicator(data) {
     if (!statusBar) return;
 
     if (data === null) {
-        statusIcon.textContent = 'history';
-        statusText.textContent = "確認中...";
+        statusText.textContent = "読み込み中...";
+        statusIcon.textContent = "history";
         statusBar.className = 'status-bar';
         return;
     }
@@ -367,7 +359,7 @@ function updateStatusIndicator(data) {
     }
 }
 
-// --- グラフ ---
+// --- チャート ---
 function initChart() {
   const canvas = document.getElementById('nutritionChart');
   if(!canvas) return;
@@ -472,7 +464,7 @@ function updateChartAndScore() {
   commentEl.innerHTML = comment;
 }
 
-// --- その他ツール (計算機・スワイプ・天気など) ---
+// --- その他ツール ---
 function setupSwipeListener() {
   document.addEventListener('touchstart', (e) => {
       touchStartX = e.touches[0].clientX;
