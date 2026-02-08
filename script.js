@@ -47,8 +47,8 @@ window.initApp = function() {
 
   updateTheme(); 
   
-  // CSV読み込み後に描画
   loadMenuCsv().finally(() => {
+    // 初回描画
     renderPage();
     initChart();
     initCalc();
@@ -305,14 +305,19 @@ function setupRealtimeListener() {
   if (unsubscribeData) { unsubscribeData(); unsubscribeData = null; }
   if (unsubscribeHistory) { unsubscribeHistory(); unsubscribeHistory = null; }
 
-  // 画面データリセット
+  // ★重要：リスナー開始前に、まず空データで画面を即時再描画する。
+  // これにより、ラジオボタンの name 属性が即座に currentUser 用のもの（radio_girl_...など）に切り替わる。
+  // 以前はここで描画していなかったため、Firebaseの応答待ちの間、
+  // 画面は「前のユーザーのボタン」のままになり、その状態で操作すると保存先不一致が起きていた。
   currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
   historyData = {};
-  
+  renderPage(); 
+  updateChartAndScore(); // チャートもクリア
+
   const listeningUser = currentUser;
   const listeningMeal = currentMeal;
 
-  // 履歴
+  // 1. 履歴データのリスナー
   const historyPath = `history/${listeningUser}`;
   const historyRef = window.ref(window.db, historyPath);
   unsubscribeHistory = window.onValue(historyRef, (snapshot) => {
@@ -321,7 +326,7 @@ function setupRealtimeListener() {
       renderPage(); 
   });
 
-  // 当日データ
+  // 2. 当日の食事データのリスナー
   const dataPath = `users/${listeningUser}/${listeningMeal}`;
   const dataRef = window.ref(window.db, dataPath);
   unsubscribeData = window.onValue(dataRef, (snapshot) => {
@@ -331,6 +336,7 @@ function setupRealtimeListener() {
       if (val) {
         currentFirebaseData = val;
       } else {
+        // データがない場合（初期状態）
         currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
       }
       updateStatusIndicator(currentFirebaseData);
@@ -535,6 +541,7 @@ function createItemRow(itemObj, checks) {
     const itemName = itemObj.name;
     const savedVal = checks[itemName] || 'none';
     
+    // ラジオボタンのname属性にユーザーIDを含めてユニークにする
     const radioName = `radio_${currentUser}_${itemName}`;
 
     let iconHtml = '';
@@ -690,12 +697,17 @@ window.switchUser = function(user) {
   currentUser = user;
   localStorage.setItem('fc_last_user', user);
   updateTheme();
-  if (window.db) setupRealtimeListener();
+  
+  if (window.db) {
+      setupRealtimeListener();
+  }
 }
 
 window.switchMeal = function(meal) {
   currentMeal = meal;
-  if (window.db) setupRealtimeListener();
+  if (window.db) {
+      setupRealtimeListener();
+  }
 }
 
 function updateTheme() {
@@ -704,9 +716,7 @@ function updateTheme() {
 }
 
 // ★重要修正：ターゲットIDからユーザーを特定するのではなく、常にcurrentUserに保存する
-// これにより、その他入力などname属性がない要素からのsaveでも正しく保存される
 window.saveData = function(targetInput, itemName) {
-  // 常に現在のユーザー（画面で見ているユーザー）のデータを保存する
   const targetUser = currentUser;
 
   const data = {
