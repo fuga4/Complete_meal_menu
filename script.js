@@ -302,21 +302,19 @@ function setupRealtimeListener() {
       return;
   }
 
-  // リスナー解除
+  // 古いリスナーを解除
   if (unsubscribeData) { unsubscribeData(); unsubscribeData = null; }
   if (unsubscribeHistory) { unsubscribeHistory(); unsubscribeHistory = null; }
 
-  // データをリセットして即時再描画（混在防止）
+  // 画面上のデータを一旦クリアして混在を防ぐ
   currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
   historyData = {};
-  renderPage(); 
-  updateChartAndScore();
-
-  // クロージャで「誰のデータを見ているか」を固定
+  
+  // クロージャで「今だれを見ているか」を固定
   const listeningUser = currentUser;
   const listeningMeal = currentMeal;
 
-  // 1. 履歴
+  // 1. 履歴データのリスナー
   const historyPath = `history/${listeningUser}`;
   const historyRef = window.ref(window.db, historyPath);
   unsubscribeHistory = window.onValue(historyRef, (snapshot) => {
@@ -325,11 +323,12 @@ function setupRealtimeListener() {
       renderPage(); 
   });
 
-  // 2. 当日データ
+  // 2. 当日の食事データのリスナー
   const dataPath = `users/${listeningUser}/${listeningMeal}`;
   const dataRef = window.ref(window.db, dataPath);
   unsubscribeData = window.onValue(dataRef, (snapshot) => {
-      if (listeningUser !== currentUser || listeningMeal !== currentMeal) return; // ガード
+      // ユーザーか食事が変わっていたら、この古い通知は無視する
+      if (listeningUser !== currentUser || listeningMeal !== currentMeal) return;
 
       const val = snapshot.val();
       if (val) {
@@ -542,7 +541,7 @@ function createItemRow(itemObj, checks) {
     const itemName = itemObj.name;
     const savedVal = checks[itemName] || 'none';
     
-    // ★重要：ラジオボタンのname属性にユーザーIDを確実に含める
+    // ラジオボタンのname属性にユーザーIDを含めてユニークにする
     const radioName = `radio_${currentUser}_${itemName}`;
 
     let iconHtml = '';
@@ -717,7 +716,7 @@ function updateTheme() {
   if(myChart) updateChartAndScore(); 
 }
 
-// ★重要修正：ターゲットIDからユーザーを特定するのではなく、常にcurrentUserに保存する
+// ★重要修正：名前チェックを廃止し、画面上のチェックボックスを素直に保存する
 window.saveData = function(targetInput, itemName) {
   // 保存先は常に「現在のユーザー」
   const targetUser = currentUser;
@@ -728,19 +727,16 @@ window.saveData = function(targetInput, itemName) {
     otherLeft: document.getElementById('other-left').value
   };
 
-  // 画面上にある「menu-radio」クラスを持つチェック済みの要素だけを集める
+  // 画面上の「メニュー用ラジオボタン」のうち、チェックされているものを全取得
+  // 名前フィルタリング（prefix check）は廃止。
+  // createItemRowで付与した「data-item」属性を信じる。
   const inputs = document.querySelectorAll('.menu-radio:checked');
   
   inputs.forEach(input => {
-    // 画面上のラジオボタンはすべて radio_{currentUser}_... という名前になっているはず
-    // 他のユーザーのラジオボタンは存在しないはずだが念のため名前でチェック
-    const prefix = `radio_${targetUser}_`;
-    if (input.name.startsWith(prefix)) {
-        const name = input.getAttribute('data-item'); // data属性から名前を取得（確実）
-        if (name) {
-            data.checks[name] = input.value;
-        }
-    }
+      const name = input.getAttribute('data-item'); // item名を取得
+      if (name) {
+          data.checks[name] = input.value;
+      }
   });
 
   data.lastUpdatedDate = getLogicalDate();
