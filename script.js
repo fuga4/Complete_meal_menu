@@ -47,8 +47,8 @@ window.initApp = function() {
 
   updateTheme(); 
   
+  // CSV読み込み後に描画
   loadMenuCsv().finally(() => {
-    // 枠組み描画
     renderPage();
     initChart();
     initCalc();
@@ -541,7 +541,7 @@ function createItemRow(itemObj, checks) {
     const itemName = itemObj.name;
     const savedVal = checks[itemName] || 'none';
     
-    // ラジオボタンのname属性にユーザーIDを含めてユニークにする
+    // ユニークな名前を生成するが、saveDataでの判定には使わない
     const radioName = `radio_${currentUser}_${itemName}`;
 
     let iconHtml = '';
