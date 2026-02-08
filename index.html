@@ -13,7 +13,7 @@
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 
 </head>
 <body data-user="boy" data-theme="minimal">
@@ -183,7 +183,7 @@
   </div>
 </div>
 
-<script src="script.js?v=2"></script>
+<script src="script.js?v=3"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
@@ -204,15 +204,18 @@
   const auth = getAuth(app);
   signInAnonymously(auth).then(() => {
       console.log("Logged in anonymously");
-      // script.jsの読み込みを待って実行
-      if (typeof initApp === 'function') {
-          initApp();
-      } else {
-          // script.jsの読み込み遅延対策
-          window.addEventListener('load', () => {
-              if (typeof initApp === 'function') initApp();
-          });
-      }
+      
+      // ★修正：initAppが読み込まれるまで待機する安全装置
+      const tryInit = () => {
+          if (typeof window.initApp === 'function') {
+              window.initApp();
+          } else {
+              // まだscript.jsが読み込まれていなければ0.1秒後に再トライ
+              setTimeout(tryInit, 100);
+          }
+      };
+      tryInit();
+
   }).catch((error) => {
       console.error("Login failed", error);
       alert(`エラーが発生しました\nCode: ${error.code}\nMessage: ${error.message}`);
