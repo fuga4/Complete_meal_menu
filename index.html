@@ -13,7 +13,17 @@
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
+
+<script>
+  window.addEventListener('error', function(e) {
+    // 読み込み中のまま止まった場合のみ表示
+    const loading = document.getElementById('loading-msg');
+    if (loading && loading.style.display !== 'none') {
+       alert('起動エラー: ' + e.message);
+    }
+  });
+</script>
 
 </head>
 <body data-user="boy" data-theme="minimal">
@@ -74,7 +84,7 @@
 </div>
 
 <div class="container" id="list-container">
-  <div style="text-align:center; margin-top:50px; color:var(--text-sub);">読み込み中...</div>
+  <div id="loading-msg" style="text-align:center; margin-top:50px; color:var(--text-sub);">読み込み中...</div>
 </div>
 
 <div class="container others-area">
@@ -183,7 +193,7 @@
   </div>
 </div>
 
-<script src="script.js?v=5"></script>
+<script src="script.js?v=6"></script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
@@ -202,18 +212,26 @@
   window.get = get;
 
   const auth = getAuth(app);
+  
+  // 認証待たずに初期化チェックを開始（script.jsが先に読まれた場合のため）
+  let initCalled = false;
+  const checkInit = setInterval(() => {
+      // script.jsのinitApp関数が存在し、まだ呼んでいなければ実行
+      if (typeof window.initApp === 'function' && !initCalled) {
+          initCalled = true;
+          clearInterval(checkInit);
+          window.initApp();
+      }
+  }, 100);
+
+  // 認証処理
   signInAnonymously(auth).then(() => {
       console.log("Logged in anonymously");
-      // script.jsの読み込みとFirebaseの接続が完了してからinitAppを呼ぶ
-      const checkInit = setInterval(() => {
-          if (typeof window.initApp === 'function') {
-              clearInterval(checkInit);
-              window.initApp();
-          }
-      }, 100);
+      // 認証完了フラグを立てる（script.js側でこれをチェックしても良い）
+      window.isAuthReady = true;
   }).catch((error) => {
       console.error("Login failed", error);
-      alert(`エラーが発生しました\nCode: ${error.code}\nMessage: ${error.message}`);
+      alert(`通信エラー: ${error.code}`);
   });
 </script>
 
