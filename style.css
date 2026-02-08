@@ -439,6 +439,7 @@ body[data-theme="glass"] .score-area::before {
 }
 body[data-theme="minimal"] .theme-btn.active { background: var(--text-main); color: white; box-shadow: none; }
 
+/* フッターボタンのレイアウト調整 */
 .fixed-footer {
   position: fixed; bottom: 0; left: 0; width: 100%;
   background: var(--bg-header); backdrop-filter: blur(20px);
