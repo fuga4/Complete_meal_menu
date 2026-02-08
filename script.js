@@ -47,9 +47,8 @@ window.initApp = function() {
 
   updateTheme(); 
   
-  // ★修正：CSV読み込み後に描画。失敗しても描画する。
+  // CSV読み込み後に描画。
   loadMenuCsv().finally(() => {
-    // データがなくても枠組みだけは描画して「読み込み中」を消す
     renderPage();
     initChart();
     initCalc();
@@ -313,12 +312,17 @@ function setupRealtimeListener() {
       unsubscribeHistory = null;
   }
 
+  // ★重要：データ混在を防ぐため、一旦メモリ上のデータをリセット
+  currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
+  historyData = {};
+  renderPage(); // クリア状態で描画
+
   // 1. 履歴データのリスナー
   const historyPath = `history/${currentUser}`;
   const historyRef = window.ref(window.db, historyPath);
   unsubscribeHistory = window.onValue(historyRef, (snapshot) => {
       historyData = snapshot.val() || {};
-      renderPage(); 
+      renderPage(); // 履歴更新時も再描画
   });
 
   // 2. 当日の食事データのリスナー
@@ -399,8 +403,8 @@ async function loadMenuCsv() {
     const text = await response.text();
     parseCsv(text);
   } catch (e) {
-    // エラーでも処理を続行（空の画面を出すため）
-    console.error("CSV Load Error:", e);
+    const c = document.getElementById('list-container');
+    if(c) c.innerHTML = `<div style="text-align:center; margin-top:20px; color:var(--text-sub);">メニュー読込エラー</div>`;
   }
 }
 
@@ -535,7 +539,9 @@ function createItemRow(itemObj, checks) {
     row.className = 'item-row';
     const itemName = itemObj.name;
     const savedVal = checks[itemName] || 'none';
-    const radioName = `radio_${itemName}`;
+    
+    // ★変更：ラジオボタンのname属性にユーザーIDを含めてユニークにする
+    const radioName = `radio_${currentUser}_${itemName}`;
 
     let iconHtml = '';
     if(itemObj.icon && itemObj.color) {
@@ -564,13 +570,13 @@ function createItemRow(itemObj, checks) {
       </div>
       <div class="options">
         <label><input type="radio" name="${radioName}" value="finish" 
-          ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData(this)">
+          ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
           <span class="radio-label">完食</span></label>
         <label><input type="radio" name="${radioName}" value="left" 
-          ${savedVal === 'left' ? 'checked' : ''} onchange="saveData(this)">
+          ${savedVal === 'left' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
           <span class="radio-label">残し</span></label>
         <label><input type="radio" name="${radioName}" value="none" 
-          ${savedVal === 'none' ? 'checked' : ''} onchange="saveData(this)">
+          ${savedVal === 'none' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
           <span class="radio-label">―</span></label>
       </div>
     `;
@@ -708,7 +714,8 @@ function updateTheme() {
   if(myChart) updateChartAndScore(); 
 }
 
-window.saveData = function(targetInput) {
+// ★変更：引数でitemNameも受け取るようにして確実に処理
+window.saveData = function(targetInput, itemName) {
   const data = {
     checks: {},
     otherFinish: document.getElementById('other-finish').value,
@@ -717,8 +724,20 @@ window.saveData = function(targetInput) {
 
   const inputs = document.querySelectorAll('input[type="radio"]:checked');
   inputs.forEach(input => {
-    const itemName = input.name.replace('radio_', '');
-    data.checks[itemName] = input.value;
+    // 識別子を除去して純粋なアイテム名を取得するロジックは使わず、
+    // radioNameの構造に依存しないようにname属性から解析するか、
+    // あるいは単純に保持しているchecksデータを作る
+    // ここでは単純に全ての checked radio を走査するが、
+    // 他のユーザーのradioは存在しない(再描画されている)はずなので大丈夫。
+    //念のため name 属性から パースする
+    // name="radio_boy_パン" -> split('_') -> [radio, boy, パン...]
+    
+    const parts = input.name.split('_');
+    // parts[0] is 'radio', parts[1] is user, parts[2...] is item name
+    if(parts.length >= 3 && parts[1] === currentUser) {
+        const name = parts.slice(2).join('_');
+        data.checks[name] = input.value;
+    }
   });
 
   data.lastUpdatedDate = getLogicalDate();
@@ -728,12 +747,11 @@ window.saveData = function(targetInput) {
   window.set(window.ref(window.db, dataPath), data);
 
   // 履歴更新
-  if (targetInput) {
-      const changedItemName = targetInput.name.replace('radio_', '');
+  if (targetInput && itemName) {
       const changedValue = targetInput.value;
       const todayDate = getLogicalDate();
       
-      const historyPath = `history/${currentUser}/${changedItemName}/${todayDate}`;
+      const historyPath = `history/${currentUser}/${itemName}/${todayDate}`;
       const historyRef = window.ref(window.db, historyPath);
 
       if (changedValue === 'finish') {
