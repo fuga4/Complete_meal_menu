@@ -302,19 +302,21 @@ function setupRealtimeListener() {
       return;
   }
 
-  // 古いリスナーを解除
+  // リスナー解除
   if (unsubscribeData) { unsubscribeData(); unsubscribeData = null; }
   if (unsubscribeHistory) { unsubscribeHistory(); unsubscribeHistory = null; }
 
-  // 画面上のデータを一旦クリアして混在を防ぐ
+  // データをリセットして即時再描画（混在防止）
   currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
   historyData = {};
-  
-  // クロージャで「今だれを見ているか」を固定
+  renderPage(); 
+  updateChartAndScore();
+
+  // クロージャで「誰のデータを見ているか」を固定
   const listeningUser = currentUser;
   const listeningMeal = currentMeal;
 
-  // 1. 履歴データのリスナー
+  // 1. 履歴
   const historyPath = `history/${listeningUser}`;
   const historyRef = window.ref(window.db, historyPath);
   unsubscribeHistory = window.onValue(historyRef, (snapshot) => {
@@ -323,12 +325,11 @@ function setupRealtimeListener() {
       renderPage(); 
   });
 
-  // 2. 当日の食事データのリスナー
+  // 2. 当日データ
   const dataPath = `users/${listeningUser}/${listeningMeal}`;
   const dataRef = window.ref(window.db, dataPath);
   unsubscribeData = window.onValue(dataRef, (snapshot) => {
-      // ユーザーか食事が変わっていたら、この古い通知は無視する
-      if (listeningUser !== currentUser || listeningMeal !== currentMeal) return;
+      if (listeningUser !== currentUser || listeningMeal !== currentMeal) return; // ガード
 
       const val = snapshot.val();
       if (val) {
@@ -337,9 +338,8 @@ function setupRealtimeListener() {
         currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
       }
       
-      // 画面更新
-      renderPage(); 
       updateStatusIndicator(currentFirebaseData);
+      renderPage(); 
       updateChartAndScore(); 
   });
 }
@@ -542,8 +542,7 @@ function createItemRow(itemObj, checks) {
     const itemName = itemObj.name;
     const savedVal = checks[itemName] || 'none';
     
-    // ★重要：ラジオボタンに data-item 属性でメニュー名を明記する
-    // これにより、saveDataで name 属性をパースする必要がなくなる
+    // ★重要：ラジオボタンのname属性にユーザーIDを確実に含める
     const radioName = `radio_${currentUser}_${itemName}`;
 
     let iconHtml = '';
@@ -699,10 +698,8 @@ window.switchUser = function(user) {
   currentUser = user;
   localStorage.setItem('fc_last_user', user);
   updateTheme();
-  // ユーザー切り替え時はリスナー再設定＆即時描画で混在防止
-  currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
-  historyData = {};
-  renderPage();
+  
+  // ユーザー切り替え時はリスナー再設定
   if (window.db) {
       setupRealtimeListener();
   }
@@ -710,8 +707,6 @@ window.switchUser = function(user) {
 
 window.switchMeal = function(meal) {
   currentMeal = meal;
-  currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
-  renderPage();
   if (window.db) {
       setupRealtimeListener();
   }
@@ -722,8 +717,7 @@ function updateTheme() {
   if(myChart) updateChartAndScore(); 
 }
 
-// ★重要修正：クリックされたボタンの名前からではなく、
-// 「今この瞬間に画面にある、現在のユーザー用のボタン」だけを集計する
+// ★重要修正：ターゲットIDからユーザーを特定するのではなく、常にcurrentUserに保存する
 window.saveData = function(targetInput, itemName) {
   // 保存先は常に「現在のユーザー」
   const targetUser = currentUser;
@@ -735,13 +729,13 @@ window.saveData = function(targetInput, itemName) {
   };
 
   // 画面上にある「menu-radio」クラスを持つチェック済みの要素だけを集める
-  // createItemRowで class="menu-radio" data-item="..." を付与したのでそれを使う
   const inputs = document.querySelectorAll('.menu-radio:checked');
   
   inputs.forEach(input => {
-    // 念のため、そのボタンが現在のユーザー用か確認 (name="radio_boy_...")
-    // ※renderPageでcurrentUser用のボタンしか生成していないので、基本的には一致するはず
-    if (input.name.includes(`radio_${targetUser}_`)) {
+    // 画面上のラジオボタンはすべて radio_{currentUser}_... という名前になっているはず
+    // 他のユーザーのラジオボタンは存在しないはずだが念のため名前でチェック
+    const prefix = `radio_${targetUser}_`;
+    if (input.name.startsWith(prefix)) {
         const name = input.getAttribute('data-item'); // data属性から名前を取得（確実）
         if (name) {
             data.checks[name] = input.value;
