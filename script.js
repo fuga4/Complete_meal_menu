@@ -5,7 +5,8 @@ let currentMeal = 'morning';
 let currentTheme = 'minimal'; 
 let menuData = { morning: {}, dinner: {} }; 
 let nutritionMap = {}; 
-// 初期値
+
+// データ保持用（切り替え時に必ず空にする）
 let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
 let historyData = {}; 
 
@@ -16,16 +17,13 @@ let weatherCode = null;
 let touchStartX = 0;
 let touchStartY = 0;
 
-// リスナー解除用の変数
+// リスナー解除関数を保持する箱
 let unsubscribeData = null;
 let unsubscribeHistory = null;
 
 const DAY_SWITCH_HOUR = 4;
 
-// 描画ごとに一意なIDを付与するためのタイムスタンプ
-let renderTimestamp = Date.now();
-
-// グローバル関数として公開
+// --- アプリ起動 ---
 window.initApp = function() {
   console.log("App initializing...");
 
@@ -41,6 +39,7 @@ window.initApp = function() {
       }
   }
 
+  // 時間帯判定
   const currentHour = new Date().getHours();
   if (currentHour >= 4 && currentHour < 14) {
       currentMeal = 'morning';
@@ -50,408 +49,79 @@ window.initApp = function() {
 
   updateTheme(); 
   
+  // CSVを読み込んでからスタート
   loadMenuCsv().finally(() => {
-    // 初回描画
-    refreshRenderTimestamp();
-    renderPage();
+    // 初回セットアップ
     initChart();
     initCalc();
     getWeather(); 
     setupSwipeListener(); 
     
-    if (window.db) {
-        setupRealtimeListener();
-    } else {
-        console.error("Firebase DB not ready.");
-    }
+    // データ読み込み開始
+    refreshDataConnection();
   });
 }
 
-// 描画用タイムスタンプ更新（画面切り替え時に呼ぶ）
-function refreshRenderTimestamp() {
-    renderTimestamp = Date.now();
-}
+// --- ★核心部分：データの接続・切り替え ---
+function refreshDataConnection() {
+    // 1. 既存の接続があれば強制切断
+    if (unsubscribeData) { unsubscribeData(); unsubscribeData = null; }
+    if (unsubscribeHistory) { unsubscribeHistory(); unsubscribeHistory = null; }
 
-// テーマ切り替え
-window.switchTheme = function(themeName) {
-    currentTheme = themeName;
-    localStorage.setItem('fc_theme', themeName);
-    document.body.setAttribute('data-theme', themeName);
-    
-    document.querySelectorAll('.theme-btn').forEach(btn => btn.classList.remove('active'));
-    const activeBtn = document.getElementById(`theme-btn-${themeName}`);
-    if(activeBtn) activeBtn.classList.add('active');
+    // 2. メモリ上のデータを完全消去（これが混ざる原因だった）
+    currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
+    historyData = {};
 
-    if (weatherCode !== null) applyWeatherEffect(weatherCode);
-    if(myChart) updateChartAndScore();
-}
+    // 3. 空の状態で一旦画面を描画（前のユーザーの表示を消すため）
+    renderPage();
+    updateChartAndScore();
+    updateStatusIndicator(null); // ステータスもクリア
 
-// --- イベントリスナー ---
-function setupSwipeListener() {
-  document.addEventListener('touchstart', (e) => {
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-  }, { passive: true });
-
-  document.addEventListener('touchend', (e) => {
-      const touchEndX = e.changedTouches[0].clientX;
-      const touchEndY = e.changedTouches[0].clientY;
-      handleSwipe(touchStartX, touchStartY, touchEndX, touchEndY);
-  }, { passive: true });
-}
-
-function handleSwipe(startX, startY, endX, endY) {
-    const diffX = endX - startX;
-    const diffY = endY - startY;
-    if (Math.abs(diffY) > Math.abs(diffX)) return;
-    if (Math.abs(diffX) > 50) {
-        if (diffX > 0) {
-            if (currentUser === 'girl') switchUser('boy');
-        } else {
-            if (currentUser === 'boy') switchUser('girl');
-        }
+    // 4. Firebaseが生きていれば再接続
+    if (!window.db || !window.ref || !window.onValue) {
+        console.error("Firebase not ready.");
+        return;
     }
-}
 
-// --- 計算機 ---
-function initCalc() {
-    const tbody = document.getElementById('calc-body');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-    for (let i = 0; i < 4; i++) {
-        const row = document.createElement('tr');
-        row.className = 'calc-row';
-        row.innerHTML = `
-            <td><input type="number" class="calc-input qty" placeholder="0" oninput="updateCalc()"></td>
-            <td><input type="number" class="calc-input price" placeholder="0" oninput="updateCalc()"></td>
-            <td class="calc-result">-</td>
-        `;
-        tbody.appendChild(row);
-    }
-}
-
-window.updateCalc = function() {
-    const rows = document.querySelectorAll('.calc-row');
-    let minUnit = Infinity;
-    let validRows = [];
-
-    rows.forEach(row => {
-        const qty = parseFloat(row.querySelector('.qty').value);
-        const price = parseFloat(row.querySelector('.price').value);
-        const resEl = row.querySelector('.calc-result');
-        
-        row.classList.remove('is-cheapest'); 
-
-        if (qty > 0 && price > 0) {
-            const unitPrice = price / qty;
-            resEl.textContent = unitPrice.toFixed(2);
-            validRows.push({ row, unitPrice });
-            if (unitPrice < minUnit) minUnit = unitPrice;
-        } else {
-            resEl.textContent = '-';
-        }
+    // --- A. 履歴データの読み込み ---
+    const historyPath = `history/${currentUser}`;
+    unsubscribeHistory = window.onValue(window.ref(window.db, historyPath), (snapshot) => {
+        historyData = snapshot.val() || {};
+        renderPage(); // 履歴が届いたら再描画
     });
 
-    if (validRows.length >= 2) {
-        validRows.forEach(item => {
-            if (item.unitPrice === minUnit) {
-                item.row.classList.add('is-cheapest');
-                item.row.querySelector('.calc-result').innerHTML = 
-                    `<span class="material-symbols-rounded" style="font-size:1rem; vertical-align:text-bottom; color:var(--color-danger);">trophy</span> ${item.unitPrice.toFixed(2)}`;
-            }
-        });
-    }
-};
-
-window.clearCalc = function() {
-    const inputs = document.querySelectorAll('.calc-input');
-    inputs.forEach(input => input.value = '');
-    window.updateCalc();
-};
-
-// --- 天気 ---
-async function getWeather() {
-  try {
-    const url = "https://api.open-meteo.com/v1/forecast?latitude=35.6995&longitude=139.6355&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo";
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (!data || !data.daily) return;
-
-    const currentHour = new Date().getHours();
-    const isPm = currentHour >= 12;
-    const targetIndex = isPm ? 1 : 0;
-    const targetLabel = isPm ? "明日" : "今日";
-
-    const daily = data.daily;
-    weatherCode = daily.weathercode[targetIndex]; 
-    const maxTemp = daily.temperature_2m_max[targetIndex];
-    const minTemp = daily.temperature_2m_min[targetIndex];
-    const pop = daily.precipitation_probability_max[targetIndex];
-
-    document.getElementById('weather-date-label').textContent = targetLabel + "：";
-    document.getElementById('weather-text').textContent = getWmoWeatherText(weatherCode);
-    document.getElementById('weather-icon').textContent = getWmoWeatherIconName(weatherCode);
-    document.getElementById('weather-pop').textContent = (pop !== null) ? pop : "--";
-    document.getElementById('temp-min').textContent = (minTemp !== null) ? Math.round(minTemp) : "--";
-    document.getElementById('temp-max').textContent = (maxTemp !== null) ? Math.round(maxTemp) : "--";
-    
-    document.getElementById('weather-bar').style.display = 'flex';
-
-    applyWeatherEffect(weatherCode);
-    updateWeatherBadge(weatherCode, maxTemp); 
-
-  } catch (e) {
-    console.log("Weather error: ", e);
-  }
-}
-
-function applyWeatherEffect(code) {
-    const body = document.body;
-    const container = document.getElementById('weather-animation-container');
-    body.classList.remove('weather-sunny', 'weather-cloudy');
-    clearWeatherAnimation();
-
-    if (currentTheme !== 'glass') {
-      if (code === 0 || code === 1) body.classList.add('weather-sunny');
-      else if (code <= 3 || code === 45 || code === 48) body.classList.add('weather-cloudy');
-    }
-
-    if ([71, 73, 75, 77, 85, 86].includes(code)) startSnowAnimation(container);
-    else if (code > 3) startRainAnimation(container);
-}
-
-function updateWeatherBadge(code, maxTemp) {
-    const badge = document.getElementById('weather-sticky-badge');
-    const icon = document.getElementById('badge-icon');
-    const temp = document.getElementById('badge-temp');
-    
-    badge.className = 'weather-badge'; 
-    badge.style.display = 'flex'; 
-
-    let iconName = 'help';
-    let styleClass = '';
-
-    if (code === 0 || code === 1) { 
-        iconName = 'sunny'; styleClass = 'badge-sunny';
-    } else if (code <= 3 || code === 45 || code === 48) { 
-        iconName = 'cloud'; styleClass = 'badge-cloudy';
-    } else if ([71, 73, 75, 77, 85, 86].includes(code)) {
-        iconName = 'ac_unit'; styleClass = 'badge-snow';
-    } else if (code >= 95) {
-        iconName = 'thunderstorm'; styleClass = 'badge-rainy';
-    } else {
-        iconName = 'rainy'; styleClass = 'badge-rainy';
-    }
-
-    badge.classList.add(styleClass);
-    icon.textContent = iconName;
-    temp.textContent = (maxTemp !== null) ? `${Math.round(maxTemp)}℃` : '--';
-}
-
-function clearWeatherAnimation() {
-    if (weatherAnimInterval) {
-        clearInterval(weatherAnimInterval);
-        weatherAnimInterval = null;
-    }
-    const c = document.getElementById('weather-animation-container');
-    if(c) c.innerHTML = '';
-}
-
-function startRainAnimation(container) {
-    weatherAnimInterval = setInterval(() => {
-        const drop = document.createElement('div');
-        drop.classList.add('rain-drop');
-        drop.style.left = Math.random() * 100 + 'vw';
-        drop.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's';
-        container.appendChild(drop);
-        setTimeout(() => { drop.remove(); }, 1000);
-    }, 50);
-}
-
-function startSnowAnimation(container) {
-    weatherAnimInterval = setInterval(() => {
-        const flake = document.createElement('div');
-        flake.classList.add('snow-flake');
-        flake.style.left = Math.random() * 100 + 'vw';
-        flake.style.opacity = Math.random();
-        flake.style.animationDuration = (Math.random() * 3 + 2) + 's';
-        container.appendChild(flake);
-        setTimeout(() => { flake.remove(); }, 5000);
-    }, 200);
-}
-
-function getWmoWeatherIconName(code) {
-  if (code === 0) return "sunny";
-  if ([1, 2, 3].includes(code)) return "partly_cloudy_day";
-  if ([45, 48].includes(code)) return "foggy";
-  if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return "rainy";
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return "ac_unit";
-  if (code >= 95) return "thunderstorm";
-  return "cloud";
-}
-
-function getWmoWeatherText(code) {
-  if (code === 0) return "晴天";
-  if ([1, 2, 3].includes(code)) return "くもり"; 
-  if ([45, 48].includes(code)) return "霧";
-  if ([51, 53, 55].includes(code)) return "霧雨";
-  if ([61, 63, 65].includes(code)) return "雨";
-  if ([71, 73, 75, 77].includes(code)) return "雪";
-  if ([80, 81, 82].includes(code)) return "にわか雨";
-  if ([85, 86].includes(code)) return "雪";
-  if (code >= 95) return "雷雨";
-  return "--";
-}
-
-// --- Firebase リスナー ---
-function setupRealtimeListener() {
-  if (!window.db || !window.ref || !window.onValue) {
-      console.error("Firebase not initialized.");
-      return;
-  }
-
-  // 古いリスナーを解除
-  if (unsubscribeData) { unsubscribeData(); unsubscribeData = null; }
-  if (unsubscribeHistory) { unsubscribeHistory(); unsubscribeHistory = null; }
-
-  // ★画面上のデータを一旦クリアして、UIを空にする
-  currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
-  historyData = {};
-  refreshRenderTimestamp(); // IDリフレッシュ
-  renderPage(); 
-  updateChartAndScore();
-
-  // クロージャで「今だれを見ているか」を固定
-  const listeningUser = currentUser;
-  const listeningMeal = currentMeal;
-
-  // 1. 履歴データのリスナー
-  const historyPath = `history/${listeningUser}`;
-  const historyRef = window.ref(window.db, historyPath);
-  unsubscribeHistory = window.onValue(historyRef, (snapshot) => {
-      if (listeningUser !== currentUser) return; // ガード
-      historyData = snapshot.val() || {};
-      renderPage(); 
-  });
-
-  // 2. 当日の食事データのリスナー
-  const dataPath = `users/${listeningUser}/${listeningMeal}`;
-  const dataRef = window.ref(window.db, dataPath);
-  unsubscribeData = window.onValue(dataRef, (snapshot) => {
-      // ユーザーか食事が変わっていたら、この古い通知は無視する
-      if (listeningUser !== currentUser || listeningMeal !== currentMeal) return;
-
-      const val = snapshot.val();
-      if (val) {
-        currentFirebaseData = val;
-      } else {
-        currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
-      }
-      
-      updateStatusIndicator(currentFirebaseData);
-      renderPage(); 
-      updateChartAndScore(); 
-  });
-}
-
-// --- 日付ロジック ---
-function getLogicalDate() {
-    const now = new Date();
-    if (now.getHours() < DAY_SWITCH_HOUR) {
-        now.setDate(now.getDate() - 1);
-    }
-    const y = now.getFullYear();
-    const m = ('0' + (now.getMonth() + 1)).slice(-2);
-    const d = ('0' + now.getDate()).slice(-2);
-    return `${y}-${m}-${d}`;
-}
-
-function getCurrentTimeStr() {
-    const now = new Date();
-    const h = ('0' + now.getHours()).slice(-2);
-    const m = ('0' + now.getMinutes()).slice(-2);
-    return `${h}:${m}`;
-}
-
-function updateStatusIndicator(data) {
-    const statusBar = document.getElementById('status-bar');
-    if(!statusBar) return; 
-
-    const statusIcon = document.getElementById('status-icon');
-    const statusText = document.getElementById('status-text');
-    const container = document.getElementById('list-container');
-
-    const todayLogical = getLogicalDate();
-    const lastUpdatedDate = data ? data.lastUpdatedDate : null;
-    const lastUpdatedTime = data ? data.lastUpdatedTime : null;
-
-    statusBar.classList.remove('is-today', 'is-old');
-    container.classList.remove('data-old');
-
-    if (lastUpdatedDate === todayLogical) {
-        statusBar.classList.add('is-today');
-        statusIcon.textContent = 'check_circle';
-        const timeStr = lastUpdatedTime ? ` (${lastUpdatedTime} 更新)` : '';
-        statusText.textContent = `今日の記録${timeStr}`;
-    } else {
-        statusBar.classList.add('is-old');
-        statusIcon.textContent = 'error'; 
-        
-        let dateMsg = "未入力";
-        if(lastUpdatedDate) {
-            const parts = lastUpdatedDate.split('-');
-            if(parts.length === 3) dateMsg = `データは ${parseInt(parts[1])}/${parseInt(parts[2])} のもの`;
+    // --- B. 当日の食事データの読み込み ---
+    const dataPath = `users/${currentUser}/${currentMeal}`;
+    unsubscribeData = window.onValue(window.ref(window.db, dataPath), (snapshot) => {
+        const val = snapshot.val();
+        if (val) {
+            currentFirebaseData = val;
+        } else {
+            // データが無いなら空で初期化
+            currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
         }
         
-        statusText.textContent = dateMsg;
-        container.classList.add('data-old');
-    }
+        // データが届いたので画面更新
+        updateStatusIndicator(currentFirebaseData);
+        renderPage(); 
+        updateChartAndScore(); 
+    });
 }
 
-// --- CSV読み込み ---
-async function loadMenuCsv() {
-  try {
-    const response = await fetch('menu.csv?' + new Date().getTime());
-    if (!response.ok) throw new Error("CSV error");
-    const text = await response.text();
-    parseCsv(text);
-  } catch (e) {
-    const c = document.getElementById('list-container');
-    if(c) c.innerHTML = `<div style="text-align:center; margin-top:20px; color:var(--text-sub);">メニュー読込エラー</div>`;
-  }
+// ユーザー切り替え
+window.switchUser = function(user) {
+  if (currentUser === user) return; // 同じなら何もしない
+  currentUser = user;
+  localStorage.setItem('fc_last_user', user);
+  updateTheme();
+  refreshDataConnection(); // ★再接続
 }
 
-function parseCsv(text) {
-  const lines = text.split(/\r\n|\n/);
-  menuData = { morning: {}, dinner: {} };
-  nutritionMap = {};
-  
-  Object.values(CATEGORY_MAP).forEach(cat => { menuData.morning[cat] = []; menuData.dinner[cat] = []; });
-  
-  lines.forEach(line => {
-    const parts = line.split(',');
-    if (parts.length < 6) return;
-    const [m, c, item, y, r, g, sub, icon, color] = parts; 
-    const catName = CATEGORY_MAP[c.trim()];
-    
-    if (!catName) return;
-    const itemName = item.trim();
-    const subCat = sub ? sub.trim() : ''; 
-    const iconName = icon ? icon.trim() : '';
-    const colorCode = color ? color.trim() : '';
-
-    const dataObj = { name: itemName, sub: subCat, icon: iconName, color: colorCode };
-
-    if (m.trim() === '1') menuData.morning[catName].push(dataObj);
-    else if (m.trim() === '2') menuData.dinner[catName].push(dataObj);
-
-    nutritionMap[itemName] = {
-      yellow: parseInt(y) || 0,
-      red: parseInt(r) || 0,
-      green: parseInt(g) || 0
-    };
-  });
+// 食事切り替え
+window.switchMeal = function(meal) {
+  if (currentMeal === meal) return;
+  currentMeal = meal;
+  refreshDataConnection(); // ★再接続
 }
 
 // --- 画面描画 ---
@@ -459,18 +129,27 @@ function renderPage() {
   const container = document.getElementById('list-container');
   if(!container) return; 
 
+  // タブの見た目更新
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   const activeTab = document.getElementById(`tab-${currentMeal}`);
   if(activeTab) activeTab.classList.add('active');
   
+  // ボタンテキスト更新
   const partnerBtn = document.getElementById('btn-partner-copy');
   if(partnerBtn) partnerBtn.innerHTML = `<span class="material-symbols-rounded">content_copy</span> コピー`;
 
   container.innerHTML = '';
   
-  const savedData = currentFirebaseData;
-  const checks = savedData.checks || {};
+  // データ準備
+  const checks = currentFirebaseData.checks || {};
+  const ofInput = document.getElementById('other-finish');
+  const olInput = document.getElementById('other-left');
 
+  // その他欄の更新（フォーカス中は更新しない）
+  if (ofInput && document.activeElement !== ofInput) ofInput.value = currentFirebaseData.otherFinish || '';
+  if (olInput && document.activeElement !== olInput) olInput.value = currentFirebaseData.otherLeft || '';
+
+  // メニューリスト生成
   Object.values(CATEGORY_MAP).forEach(catName => {
     const items = menuData[currentMeal][catName];
     if (!items || items.length === 0) return;
@@ -514,11 +193,105 @@ function renderPage() {
 
     container.appendChild(card);
   });
+}
 
-  const ofInput = document.getElementById('other-finish');
-  const olInput = document.getElementById('other-left');
-  if (ofInput && document.activeElement !== ofInput) ofInput.value = savedData.otherFinish || '';
-  if (olInput && document.activeElement !== olInput) olInput.value = savedData.otherLeft || '';
+function createItemRow(itemObj, checks) {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    const itemName = itemObj.name;
+    const savedVal = checks[itemName] || 'none';
+    
+    // ★重要：ラジオボタンの名前（グループ名）に「現在のユーザー名」を含める
+    // これにより、男の子画面と女の子画面でフォームが物理的に別物になる
+    const radioName = `radio_${currentUser}_${itemName}`;
+
+    let iconHtml = '';
+    if(itemObj.icon && itemObj.color) {
+        iconHtml = `<span class="material-symbols-rounded menu-icon-disp" style="color:${itemObj.color};">${itemObj.icon}</span>`;
+    }
+
+    const weekDates = getWeekDates();
+    let historyHtml = '<div class="history-week">';
+    const itemHistory = (historyData[itemName] || {});
+
+    weekDates.forEach(d => {
+        const isAte = itemHistory[d.dateStr] === true;
+        const ateClass = isAte ? 'ate' : '';
+        const todayClass = d.isToday ? 'today' : '';
+        historyHtml += `<span class="history-day ${ateClass} ${todayClass}">${d.label}</span>`;
+    });
+    historyHtml += '</div>';
+
+    row.innerHTML = `
+      <div class="item-name">
+        <div class="item-name-top">
+          ${iconHtml}
+          <span>${itemName}</span>
+        </div>
+        ${historyHtml}
+      </div>
+      <div class="options">
+        <label><input type="radio" class="menu-radio" name="${radioName}" data-item="${itemName}" value="finish" 
+          ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
+          <span class="radio-label">完食</span></label>
+        <label><input type="radio" class="menu-radio" name="${radioName}" data-item="${itemName}" value="left" 
+          ${savedVal === 'left' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
+          <span class="radio-label">残し</span></label>
+        <label><input type="radio" class="menu-radio" name="${radioName}" data-item="${itemName}" value="none" 
+          ${savedVal === 'none' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
+          <span class="radio-label">―</span></label>
+      </div>
+    `;
+    return row;
+}
+
+// --- 保存処理 ---
+window.saveData = function(targetInput, itemName) {
+  // 保存時は必ず「今、メモリにある変数」をベースにするのではなく
+  // 「今、画面で操作されている状態」を集めて保存する（整合性担保）
+  
+  const data = {
+    checks: {},
+    otherFinish: document.getElementById('other-finish').value,
+    otherLeft: document.getElementById('other-left').value
+  };
+
+  // 画面上のチェック状態を収集
+  // 名前が radio_{currentUser}_... で始まるものだけを集める
+  const inputs = document.querySelectorAll(`.menu-radio:checked`);
+  inputs.forEach(input => {
+      // 念のため、現在表示中のユーザー用のボタンか確認
+      if(input.name.indexOf(`radio_${currentUser}_`) === 0) {
+          const name = input.getAttribute('data-item');
+          if(name) data.checks[name] = input.value;
+      }
+  });
+
+  data.lastUpdatedDate = getLogicalDate();
+  data.lastUpdatedTime = getCurrentTimeStr();
+
+  // 保存実行
+  const dataPath = `users/${currentUser}/${currentMeal}`;
+  window.set(window.ref(window.db, dataPath), data);
+
+  // 履歴の更新
+  if (targetInput && itemName) {
+      const changedValue = targetInput.value;
+      const todayDate = getLogicalDate();
+      const historyPath = `history/${currentUser}/${itemName}/${todayDate}`;
+      
+      if (changedValue === 'finish') {
+          window.set(window.ref(window.db, historyPath), true);
+      } else {
+          window.set(window.ref(window.db, historyPath), null);
+      }
+  }
+}
+
+// --- 共通・ユーティリティ ---
+function updateTheme() {
+  document.body.setAttribute('data-user', currentUser);
+  // テーマ切り替え時は再描画は不要（refreshDataConnection内で呼ばれるため）
 }
 
 function getWeekDates() {
@@ -547,55 +320,63 @@ function getWeekDates() {
     return dates;
 }
 
-function createItemRow(itemObj, checks) {
-    const row = document.createElement('div');
-    row.className = 'item-row';
-    const itemName = itemObj.name;
-    const savedVal = checks[itemName] || 'none';
-    
-    // ★重要：レンダリングID（タイムスタンプ）を名前に追加して、
-    // 前回描画されたボタンとは「全くの別物」としてブラウザに認識させる。
-    // これにより、ブラウザのキャッシュや状態維持を強制リセットする。
-    const uniqueId = `radio_${currentUser}_${renderTimestamp}_${itemName}`;
+function getLogicalDate() {
+    const now = new Date();
+    if (now.getHours() < DAY_SWITCH_HOUR) {
+        now.setDate(now.getDate() - 1);
+    }
+    const y = now.getFullYear();
+    const m = ('0' + (now.getMonth() + 1)).slice(-2);
+    const d = ('0' + now.getDate()).slice(-2);
+    return `${y}-${m}-${d}`;
+}
 
-    let iconHtml = '';
-    if(itemObj.icon && itemObj.color) {
-        iconHtml = `<span class="material-symbols-rounded menu-icon-disp" style="color:${itemObj.color};">${itemObj.icon}</span>`;
+function getCurrentTimeStr() {
+    const now = new Date();
+    const h = ('0' + now.getHours()).slice(-2);
+    const m = ('0' + now.getMinutes()).slice(-2);
+    return `${h}:${m}`;
+}
+
+function updateStatusIndicator(data) {
+    const statusBar = document.getElementById('status-bar');
+    if(!statusBar) return; 
+
+    const statusIcon = document.getElementById('status-icon');
+    const statusText = document.getElementById('status-text');
+    const container = document.getElementById('list-container');
+
+    // データがまだロードされていない場合は何もしない
+    if (data === null) {
+        statusText.textContent = "読み込み中...";
+        return;
     }
 
-    const weekDates = getWeekDates();
-    let historyHtml = '<div class="history-week">';
-    const itemHistory = (historyData[itemName] || {});
+    const todayLogical = getLogicalDate();
+    const lastUpdatedDate = data.lastUpdatedDate;
+    const lastUpdatedTime = data.lastUpdatedTime;
 
-    weekDates.forEach(d => {
-        const isAte = itemHistory[d.dateStr] === true;
-        const ateClass = isAte ? 'ate' : '';
-        const todayClass = d.isToday ? 'today' : '';
-        historyHtml += `<span class="history-day ${ateClass} ${todayClass}">${d.label}</span>`;
-    });
-    historyHtml += '</div>';
+    statusBar.classList.remove('is-today', 'is-old');
+    container.classList.remove('data-old');
 
-    row.innerHTML = `
-      <div class="item-name">
-        <div class="item-name-top">
-          ${iconHtml}
-          <span>${itemName}</span>
-        </div>
-        ${historyHtml}
-      </div>
-      <div class="options">
-        <label><input type="radio" class="menu-radio" name="${uniqueId}" data-item="${itemName}" value="finish" 
-          ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
-          <span class="radio-label">完食</span></label>
-        <label><input type="radio" class="menu-radio" name="${uniqueId}" data-item="${itemName}" value="left" 
-          ${savedVal === 'left' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
-          <span class="radio-label">残し</span></label>
-        <label><input type="radio" class="menu-radio" name="${uniqueId}" data-item="${itemName}" value="none" 
-          ${savedVal === 'none' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
-          <span class="radio-label">―</span></label>
-      </div>
-    `;
-    return row;
+    if (lastUpdatedDate === todayLogical) {
+        statusBar.classList.add('is-today');
+        statusIcon.textContent = 'check_circle';
+        const timeStr = lastUpdatedTime ? ` (${lastUpdatedTime} 更新)` : '';
+        statusText.textContent = `今日の記録${timeStr}`;
+    } else {
+        statusBar.classList.add('is-old');
+        statusIcon.textContent = 'error'; 
+        
+        let dateMsg = "未入力";
+        if(lastUpdatedDate) {
+            const parts = lastUpdatedDate.split('-');
+            if(parts.length === 3) dateMsg = `データは ${parseInt(parts[1])}/${parseInt(parts[2])} のもの`;
+        }
+        
+        statusText.textContent = dateMsg;
+        container.classList.add('data-old');
+    }
 }
 
 // --- グラフ ---
@@ -706,80 +487,7 @@ function updateChartAndScore() {
   if(commentEl) commentEl.innerHTML = comment;
 }
 
-// --- ユーザー操作系 ---
-window.switchUser = function(user) {
-  currentUser = user;
-  localStorage.setItem('fc_last_user', user);
-  updateTheme();
-  
-  // ユーザー切り替え時は描画IDを更新し、リスナー再設定
-  refreshRenderTimestamp();
-  if (window.db) {
-      setupRealtimeListener();
-  }
-}
-
-window.switchMeal = function(meal) {
-  currentMeal = meal;
-  // 食事切り替え時も描画IDを更新
-  refreshRenderTimestamp();
-  if (window.db) {
-      setupRealtimeListener();
-  }
-}
-
-function updateTheme() {
-  document.body.setAttribute('data-user', currentUser);
-  if(myChart) updateChartAndScore(); 
-}
-
-// ★重要：保存先は常に「現在のユーザー」
-window.saveData = function(targetInput, itemName) {
-  const targetUser = currentUser;
-
-  const data = {
-    checks: {},
-    otherFinish: document.getElementById('other-finish').value,
-    otherLeft: document.getElementById('other-left').value
-  };
-
-  // ★重要：ユニークIDで検索するのではなく、classとdata-itemで検索する
-  // これにより、renderTimestampが変わっても正しく要素を拾える
-  const inputs = document.querySelectorAll('.menu-radio:checked');
-  
-  inputs.forEach(input => {
-      // 念のため、現在表示中のrenderTimestampを持つ要素か確認（古い要素を拾わないため）
-      // input.name には renderTimestamp が含まれている
-      if(input.name.includes(`_${renderTimestamp}_`)) {
-          const name = input.getAttribute('data-item'); 
-          if (name) {
-              data.checks[name] = input.value;
-          }
-      }
-  });
-
-  data.lastUpdatedDate = getLogicalDate();
-  data.lastUpdatedTime = getCurrentTimeStr();
-
-  const dataPath = `users/${targetUser}/${currentMeal}`;
-  window.set(window.ref(window.db, dataPath), data);
-
-  // 履歴更新
-  if (targetInput && itemName) {
-      const changedValue = targetInput.value;
-      const todayDate = getLogicalDate();
-      
-      const historyPath = `history/${targetUser}/${itemName}/${todayDate}`;
-      const historyRef = window.ref(window.db, historyPath);
-
-      if (changedValue === 'finish') {
-          window.set(historyRef, true);
-      } else {
-          window.set(historyRef, null);
-      }
-  }
-}
-
+// --- ボタン操作系 ---
 window.showResetModal = function() {
   document.getElementById('reset-modal').style.display = 'flex';
 }
@@ -799,6 +507,7 @@ window.resetCurrent = function() {
   const userName = currentUser === 'boy' ? '男の子' : '女の子';
   const mealName = currentMeal === 'morning' ? '朝食' : '夕食';
   if(!confirm(`「${userName}」の「${mealName}」のみリセットしますか？`)) return;
+  
   const dataPath = `users/${currentUser}/${currentMeal}`;
   window.set(window.ref(window.db, dataPath), null);
 }
@@ -810,7 +519,23 @@ window.resetAll = function() {
   window.set(window.ref(window.db, dataPath), null);
 }
 
-// トースト通知
+window.copyToPartner = function() {
+  const targetUser = currentUser === 'boy' ? 'girl' : 'boy';
+  const targetName = currentUser === 'boy' ? '女の子' : '男の子';
+  
+  const sourcePath = `users/${currentUser}/${currentMeal}`;
+  const targetPath = `users/${targetUser}/${currentMeal}`;
+  
+  window.get(window.ref(window.db, sourcePath)).then((snapshot) => {
+    if (snapshot.exists()) {
+      window.set(window.ref(window.db, targetPath), snapshot.val());
+      showToast(`${targetName}へコピーしました！`);
+    } else {
+      showToast("データがありません");
+    }
+  });
+}
+
 function ensureToastElement() {
     let toast = document.getElementById('toast');
     if (!toast) {
@@ -826,30 +551,10 @@ function showToast(message) {
   const toast = ensureToastElement();
   toast.textContent = message;
   toast.className = 'toast show';
-  
-  setTimeout(() => {
-    toast.className = 'toast';
-  }, 3000);
+  setTimeout(() => { toast.className = 'toast'; }, 3000);
 }
 
-window.copyToPartner = function() {
-  const targetUser = currentUser === 'boy' ? 'girl' : 'boy';
-  const targetName = currentUser === 'boy' ? '女の子' : '男の子';
-  const mealName = currentMeal === 'morning' ? '朝食' : '夕食';
-  
-  const sourcePath = `users/${currentUser}/${currentMeal}`;
-  const targetPath = `users/${targetUser}/${currentMeal}`;
-  
-  window.get(window.ref(window.db, sourcePath)).then((snapshot) => {
-    if (snapshot.exists()) {
-      window.set(window.ref(window.db, targetPath), snapshot.val());
-      showToast(`${targetName}へコピーしました！`);
-    } else {
-      showToast("データがありません");
-    }
-  });
-}
-
+// Generate & Copy
 window.generateAndCopy = function(shouldLaunch) {
   const ICON_FINISH = "⭕️";
   const ICON_LEFT   = "🔺"; 
@@ -862,7 +567,6 @@ window.generateAndCopy = function(shouldLaunch) {
   Object.keys(CATEGORY_MAP).forEach(key => {
       const catName = CATEGORY_MAP[key];
       const items = menuData[currentMeal][catName];
-      
       if (!items) return;
 
       items.forEach(itemObj => {
@@ -913,6 +617,5 @@ window.generateAndCopy = function(shouldLaunch) {
           }
       }
   };
-
   executeCopy();
 }
