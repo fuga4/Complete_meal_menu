@@ -5,6 +5,7 @@ let currentMeal = 'morning';
 let currentTheme = 'minimal'; 
 let menuData = { morning: {}, dinner: {} }; 
 let nutritionMap = {}; 
+// 初期値
 let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
 let historyData = {}; 
 
@@ -15,7 +16,7 @@ let weatherCode = null;
 let touchStartX = 0;
 let touchStartY = 0;
 
-// ★追加：リスナー解除用の関数を保持する変数
+// リスナー解除用の変数
 let unsubscribeData = null;
 let unsubscribeHistory = null;
 
@@ -46,8 +47,9 @@ window.initApp = function() {
 
   updateTheme(); 
   
-  loadMenuCsv().then(() => {
-    // 初期描画
+  // ★修正：CSV読み込み後に描画。失敗しても描画する。
+  loadMenuCsv().finally(() => {
+    // データがなくても枠組みだけは描画して「読み込み中」を消す
     renderPage();
     initChart();
     initCalc();
@@ -301,7 +303,7 @@ function setupRealtimeListener() {
       return;
   }
 
-  // ★重要：既存のリスナーがあれば解除（オフ）にする
+  // ★重要：既存のリスナーがあれば解除
   if (unsubscribeData) {
       unsubscribeData(); 
       unsubscribeData = null;
@@ -397,8 +399,8 @@ async function loadMenuCsv() {
     const text = await response.text();
     parseCsv(text);
   } catch (e) {
-    const c = document.getElementById('list-container');
-    if(c) c.innerHTML = `<div style="text-align:center; margin-top:20px; color:var(--text-sub);">メニュー読込エラー</div>`;
+    // エラーでも処理を続行（空の画面を出すため）
+    console.error("CSV Load Error:", e);
   }
 }
 
@@ -689,7 +691,6 @@ window.switchUser = function(user) {
   localStorage.setItem('fc_last_user', user);
   updateTheme();
   
-  // ★重要：リスナーを再設定して前のユーザーの監視を切る
   if (window.db) {
       setupRealtimeListener();
   }
@@ -697,7 +698,6 @@ window.switchUser = function(user) {
 
 window.switchMeal = function(meal) {
   currentMeal = meal;
-  // ★重要：リスナーを再設定
   if (window.db) {
       setupRealtimeListener();
   }
@@ -774,6 +774,7 @@ window.resetAll = function() {
   window.set(window.ref(window.db, dataPath), null);
 }
 
+// トースト通知
 function ensureToastElement() {
     let toast = document.getElementById('toast');
     if (!toast) {
