@@ -5,7 +5,6 @@ let currentMeal = 'morning';
 let currentTheme = 'minimal'; 
 let menuData = { morning: {}, dinner: {} }; 
 let nutritionMap = {}; 
-// 初期値
 let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
 let historyData = {}; 
 
@@ -15,6 +14,10 @@ let weatherCode = null;
 
 let touchStartX = 0;
 let touchStartY = 0;
+
+// ★追加：リスナー解除用の関数を保持する変数
+let unsubscribeData = null;
+let unsubscribeHistory = null;
 
 const DAY_SWITCH_HOUR = 4;
 
@@ -43,21 +46,18 @@ window.initApp = function() {
 
   updateTheme(); 
   
-  // CSV読み込み完了後、すぐに画面を描画する
   loadMenuCsv().then(() => {
-    // まず空の状態でもいいので描画してしまう（読み込み中...を消すため）
+    // 初期描画
     renderPage();
     initChart();
     initCalc();
     getWeather(); 
     setupSwipeListener(); 
     
-    // その後、Firebaseのリスナーを開始
     if (window.db) {
         setupRealtimeListener();
     } else {
         console.error("Firebase DB not ready.");
-        // DB接続がない場合でもアプリとしては動くようにする
     }
   });
 }
@@ -295,25 +295,34 @@ function getWmoWeatherText(code) {
 }
 
 // --- Firebase リスナー ---
-// ★変更：履歴とメインデータのリスナーを独立させる
 function setupRealtimeListener() {
   if (!window.db || !window.ref || !window.onValue) {
       console.error("Firebase not initialized.");
       return;
   }
 
+  // ★重要：既存のリスナーがあれば解除（オフ）にする
+  if (unsubscribeData) {
+      unsubscribeData(); 
+      unsubscribeData = null;
+  }
+  if (unsubscribeHistory) {
+      unsubscribeHistory();
+      unsubscribeHistory = null;
+  }
+
   // 1. 履歴データのリスナー
   const historyPath = `history/${currentUser}`;
   const historyRef = window.ref(window.db, historyPath);
-  window.onValue(historyRef, (snapshot) => {
+  unsubscribeHistory = window.onValue(historyRef, (snapshot) => {
       historyData = snapshot.val() || {};
-      renderPage(); // 履歴更新時も再描画
+      renderPage(); 
   });
 
   // 2. 当日の食事データのリスナー
   const dataPath = `users/${currentUser}/${currentMeal}`;
   const dataRef = window.ref(window.db, dataPath);
-  window.onValue(dataRef, (snapshot) => {
+  unsubscribeData = window.onValue(dataRef, (snapshot) => {
       const val = snapshot.val();
       if (val) {
         currentFirebaseData = val;
@@ -321,7 +330,7 @@ function setupRealtimeListener() {
         currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
       }
       updateStatusIndicator(currentFirebaseData);
-      renderPage(); // データ更新時も再描画
+      renderPage(); 
       updateChartAndScore(); 
   });
 }
@@ -347,7 +356,7 @@ function getCurrentTimeStr() {
 
 function updateStatusIndicator(data) {
     const statusBar = document.getElementById('status-bar');
-    if(!statusBar) return; // エラーガード
+    if(!statusBar) return; 
 
     const statusIcon = document.getElementById('status-icon');
     const statusText = document.getElementById('status-text');
@@ -428,7 +437,7 @@ function parseCsv(text) {
 // --- 画面描画 ---
 function renderPage() {
   const container = document.getElementById('list-container');
-  if(!container) return; // エラーガード
+  if(!container) return; 
 
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   const activeTab = document.getElementById(`tab-${currentMeal}`);
@@ -679,12 +688,19 @@ window.switchUser = function(user) {
   currentUser = user;
   localStorage.setItem('fc_last_user', user);
   updateTheme();
-  if (window.db) setupRealtimeListener();
+  
+  // ★重要：リスナーを再設定して前のユーザーの監視を切る
+  if (window.db) {
+      setupRealtimeListener();
+  }
 }
 
 window.switchMeal = function(meal) {
   currentMeal = meal;
-  if (window.db) setupRealtimeListener();
+  // ★重要：リスナーを再設定
+  if (window.db) {
+      setupRealtimeListener();
+  }
 }
 
 function updateTheme() {
@@ -758,7 +774,6 @@ window.resetAll = function() {
   window.set(window.ref(window.db, dataPath), null);
 }
 
-// トースト通知
 function ensureToastElement() {
     let toast = document.getElementById('toast');
     if (!toast) {
