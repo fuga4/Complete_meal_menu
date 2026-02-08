@@ -47,6 +47,7 @@ window.initApp = function() {
 
   updateTheme(); 
   
+  // CSV読み込み後に描画
   loadMenuCsv().finally(() => {
     renderPage();
     initChart();
@@ -301,32 +302,30 @@ function setupRealtimeListener() {
       return;
   }
 
-  // 古いリスナーを解除
   if (unsubscribeData) { unsubscribeData(); unsubscribeData = null; }
   if (unsubscribeHistory) { unsubscribeHistory(); unsubscribeHistory = null; }
 
-  // 画面上のデータを一旦クリア
+  // 画面データリセット
   currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
   historyData = {};
   
-  // クロージャで「今だれを見ているか」を固定
   const listeningUser = currentUser;
   const listeningMeal = currentMeal;
 
-  // 1. 履歴データのリスナー
+  // 履歴
   const historyPath = `history/${listeningUser}`;
   const historyRef = window.ref(window.db, historyPath);
   unsubscribeHistory = window.onValue(historyRef, (snapshot) => {
-      if (listeningUser !== currentUser) return; // ガード
+      if (listeningUser !== currentUser) return; 
       historyData = snapshot.val() || {};
       renderPage(); 
   });
 
-  // 2. 当日の食事データのリスナー
+  // 当日データ
   const dataPath = `users/${listeningUser}/${listeningMeal}`;
   const dataRef = window.ref(window.db, dataPath);
   unsubscribeData = window.onValue(dataRef, (snapshot) => {
-      if (listeningUser !== currentUser || listeningMeal !== currentMeal) return; // ガード
+      if (listeningUser !== currentUser || listeningMeal !== currentMeal) return;
 
       const val = snapshot.val();
       if (val) {
@@ -468,13 +467,11 @@ function renderPage() {
     const card = document.createElement('div');
     card.className = 'list-card';
 
-    // サブカテゴリ無し
     const noSubItems = items.filter(i => !i.sub);
     noSubItems.forEach(itemObj => {
         card.appendChild(createItemRow(itemObj, checks));
     });
 
-    // サブカテゴリ有り
     let subCategories = [...new Set(items.filter(i => i.sub).map(i => i.sub))];
     const ORDER_LIST = ["豆・卵・乳", "芋・栗・南瓜", "おかず・粉もの", "野菜・きのこ"];
     subCategories.sort((a, b) => {
@@ -506,7 +503,6 @@ function renderPage() {
   if (olInput && document.activeElement !== olInput) olInput.value = savedData.otherLeft || '';
 }
 
-// 週カレンダー生成
 function getWeekDates() {
     const now = new Date();
     if (now.getHours() < DAY_SWITCH_HOUR) {
@@ -539,7 +535,6 @@ function createItemRow(itemObj, checks) {
     const itemName = itemObj.name;
     const savedVal = checks[itemName] || 'none';
     
-    // ラジオボタンのname属性にユーザーIDを含めてユニークにする
     const radioName = `radio_${currentUser}_${itemName}`;
 
     let iconHtml = '';
@@ -569,13 +564,13 @@ function createItemRow(itemObj, checks) {
       </div>
       <div class="options">
         <label><input type="radio" name="${radioName}" value="finish" 
-          ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData(this)">
+          ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
           <span class="radio-label">完食</span></label>
         <label><input type="radio" name="${radioName}" value="left" 
-          ${savedVal === 'left' ? 'checked' : ''} onchange="saveData(this)">
+          ${savedVal === 'left' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
           <span class="radio-label">残し</span></label>
         <label><input type="radio" name="${radioName}" value="none" 
-          ${savedVal === 'none' ? 'checked' : ''} onchange="saveData(this)">
+          ${savedVal === 'none' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
           <span class="radio-label">―</span></label>
       </div>
     `;
@@ -695,17 +690,12 @@ window.switchUser = function(user) {
   currentUser = user;
   localStorage.setItem('fc_last_user', user);
   updateTheme();
-  
-  if (window.db) {
-      setupRealtimeListener();
-  }
+  if (window.db) setupRealtimeListener();
 }
 
 window.switchMeal = function(meal) {
   currentMeal = meal;
-  if (window.db) {
-      setupRealtimeListener();
-  }
+  if (window.db) setupRealtimeListener();
 }
 
 function updateTheme() {
@@ -713,17 +703,12 @@ function updateTheme() {
   if(myChart) updateChartAndScore(); 
 }
 
-// ★重要修正：ターゲットIDからユーザーを特定して保存する
-window.saveData = function(targetInput) {
-  // 1. まず「どのユーザーのデータとして保存すべきか」を、クリックされたボタンのname属性から決定する
-  // name="radio_boy_パン" -> user="boy"
-  const clickedParts = targetInput.name.split('_');
-  if(clickedParts.length < 3) return; // エラーガード
-  
-  const targetUser = clickedParts[1]; // "boy" or "girl"
-  const itemName = clickedParts.slice(2).join('_'); // "パン"
+// ★重要修正：ターゲットIDからユーザーを特定するのではなく、常にcurrentUserに保存する
+// これにより、その他入力などname属性がない要素からのsaveでも正しく保存される
+window.saveData = function(targetInput, itemName) {
+  // 常に現在のユーザー（画面で見ているユーザー）のデータを保存する
+  const targetUser = currentUser;
 
-  // 2. そのターゲットユーザーのチェック状態だけを集める
   const data = {
     checks: {},
     otherFinish: document.getElementById('other-finish').value,
@@ -732,10 +717,10 @@ window.saveData = function(targetInput) {
 
   const inputs = document.querySelectorAll('input[type="radio"]:checked');
   inputs.forEach(input => {
-    const parts = input.name.split('_');
-    // ラジオボタンの持ち主が、今保存しようとしているユーザーと一致する場合のみ採用
-    if(parts.length >= 3 && parts[1] === targetUser) {
-        const name = parts.slice(2).join('_');
+    // 画面上のラジオボタンはすべて radio_{currentUser}_... という名前になっているはず
+    const prefix = `radio_${targetUser}_`;
+    if (input.name.startsWith(prefix)) {
+        const name = input.name.substring(prefix.length);
         data.checks[name] = input.value;
     }
   });
@@ -743,21 +728,22 @@ window.saveData = function(targetInput) {
   data.lastUpdatedDate = getLogicalDate();
   data.lastUpdatedTime = getCurrentTimeStr();
 
-  // 3. ターゲットユーザーのパスに保存する（globalのcurrentUserには依存しない）
   const dataPath = `users/${targetUser}/${currentMeal}`;
   window.set(window.ref(window.db, dataPath), data);
 
-  // 履歴更新
-  const changedValue = targetInput.value;
-  const todayDate = getLogicalDate();
-  
-  const historyPath = `history/${targetUser}/${itemName}/${todayDate}`;
-  const historyRef = window.ref(window.db, historyPath);
+  // 履歴更新 (チェックボックス操作時のみ)
+  if (targetInput && itemName) {
+      const changedValue = targetInput.value;
+      const todayDate = getLogicalDate();
+      
+      const historyPath = `history/${targetUser}/${itemName}/${todayDate}`;
+      const historyRef = window.ref(window.db, historyPath);
 
-  if (changedValue === 'finish') {
-      window.set(historyRef, true);
-  } else {
-      window.set(historyRef, null);
+      if (changedValue === 'finish') {
+          window.set(historyRef, true);
+      } else {
+          window.set(historyRef, null);
+      }
   }
 }
 
