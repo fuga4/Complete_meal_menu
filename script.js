@@ -47,7 +47,6 @@ window.initApp = function() {
 
   updateTheme(); 
   
-  // CSV読み込み後に描画
   loadMenuCsv().finally(() => {
     renderPage();
     initChart();
@@ -306,22 +305,19 @@ function setupRealtimeListener() {
   if (unsubscribeData) { unsubscribeData(); unsubscribeData = null; }
   if (unsubscribeHistory) { unsubscribeHistory(); unsubscribeHistory = null; }
 
-  // 画面上のデータを一旦クリアして混在を防ぐ
+  // 画面上のデータを一旦クリア
   currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
   historyData = {};
   
-  // ★重要：リスナー設定時に「今だれを見ているか」を記録する（クロージャ）
+  // クロージャで「今だれを見ているか」を固定
   const listeningUser = currentUser;
   const listeningMeal = currentMeal;
 
   // 1. 履歴データのリスナー
   const historyPath = `history/${listeningUser}`;
   const historyRef = window.ref(window.db, historyPath);
-  
   unsubscribeHistory = window.onValue(historyRef, (snapshot) => {
-      // ★ガード処理：もし画面のユーザーと、このリスナーのユーザーが違ったら無視する
-      if (listeningUser !== currentUser) return;
-      
+      if (listeningUser !== currentUser) return; // ガード
       historyData = snapshot.val() || {};
       renderPage(); 
   });
@@ -329,10 +325,8 @@ function setupRealtimeListener() {
   // 2. 当日の食事データのリスナー
   const dataPath = `users/${listeningUser}/${listeningMeal}`;
   const dataRef = window.ref(window.db, dataPath);
-  
   unsubscribeData = window.onValue(dataRef, (snapshot) => {
-      // ★ガード処理：ユーザーか食事が変わっていたら、この古い通知は無視する
-      if (listeningUser !== currentUser || listeningMeal !== currentMeal) return;
+      if (listeningUser !== currentUser || listeningMeal !== currentMeal) return; // ガード
 
       const val = snapshot.val();
       if (val) {
@@ -575,13 +569,13 @@ function createItemRow(itemObj, checks) {
       </div>
       <div class="options">
         <label><input type="radio" name="${radioName}" value="finish" 
-          ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
+          ${savedVal === 'finish' ? 'checked' : ''} onchange="saveData(this)">
           <span class="radio-label">完食</span></label>
         <label><input type="radio" name="${radioName}" value="left" 
-          ${savedVal === 'left' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
+          ${savedVal === 'left' ? 'checked' : ''} onchange="saveData(this)">
           <span class="radio-label">残し</span></label>
         <label><input type="radio" name="${radioName}" value="none" 
-          ${savedVal === 'none' ? 'checked' : ''} onchange="saveData(this, '${itemName}')">
+          ${savedVal === 'none' ? 'checked' : ''} onchange="saveData(this)">
           <span class="radio-label">―</span></label>
       </div>
     `;
@@ -719,7 +713,17 @@ function updateTheme() {
   if(myChart) updateChartAndScore(); 
 }
 
-window.saveData = function(targetInput, itemName) {
+// ★重要修正：ターゲットIDからユーザーを特定して保存する
+window.saveData = function(targetInput) {
+  // 1. まず「どのユーザーのデータとして保存すべきか」を、クリックされたボタンのname属性から決定する
+  // name="radio_boy_パン" -> user="boy"
+  const clickedParts = targetInput.name.split('_');
+  if(clickedParts.length < 3) return; // エラーガード
+  
+  const targetUser = clickedParts[1]; // "boy" or "girl"
+  const itemName = clickedParts.slice(2).join('_'); // "パン"
+
+  // 2. そのターゲットユーザーのチェック状態だけを集める
   const data = {
     checks: {},
     otherFinish: document.getElementById('other-finish').value,
@@ -728,10 +732,9 @@ window.saveData = function(targetInput, itemName) {
 
   const inputs = document.querySelectorAll('input[type="radio"]:checked');
   inputs.forEach(input => {
-    // name="radio_boy_パン" -> split('_') -> [radio, boy, パン...]
     const parts = input.name.split('_');
-    // 現在のユーザーIDと一致するものだけを保存対象にする（誤保存防止）
-    if(parts.length >= 3 && parts[1] === currentUser) {
+    // ラジオボタンの持ち主が、今保存しようとしているユーザーと一致する場合のみ採用
+    if(parts.length >= 3 && parts[1] === targetUser) {
         const name = parts.slice(2).join('_');
         data.checks[name] = input.value;
     }
@@ -740,22 +743,21 @@ window.saveData = function(targetInput, itemName) {
   data.lastUpdatedDate = getLogicalDate();
   data.lastUpdatedTime = getCurrentTimeStr();
 
-  const dataPath = `users/${currentUser}/${currentMeal}`;
+  // 3. ターゲットユーザーのパスに保存する（globalのcurrentUserには依存しない）
+  const dataPath = `users/${targetUser}/${currentMeal}`;
   window.set(window.ref(window.db, dataPath), data);
 
   // 履歴更新
-  if (targetInput && itemName) {
-      const changedValue = targetInput.value;
-      const todayDate = getLogicalDate();
-      
-      const historyPath = `history/${currentUser}/${itemName}/${todayDate}`;
-      const historyRef = window.ref(window.db, historyPath);
+  const changedValue = targetInput.value;
+  const todayDate = getLogicalDate();
+  
+  const historyPath = `history/${targetUser}/${itemName}/${todayDate}`;
+  const historyRef = window.ref(window.db, historyPath);
 
-      if (changedValue === 'finish') {
-          window.set(historyRef, true);
-      } else {
-          window.set(historyRef, null);
-      }
+  if (changedValue === 'finish') {
+      window.set(historyRef, true);
+  } else {
+      window.set(historyRef, null);
   }
 }
 
