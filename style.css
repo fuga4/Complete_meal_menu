@@ -482,7 +482,7 @@ body[data-theme="minimal"] .theme-btn.active { background: var(--text-main); col
 .badge-rainy { background-color: #E3F2FD; color: #1976D2; border-color: #90CAF9; }
 .badge-snow { background-color: #FAFAFA; color: #5C6BC0; border-color: #E8EAF6; }
 
-/* トースト通知のz-indexを9999に */
+/* ★変更：トースト通知のz-indexを9999に */
 .toast {
   visibility: hidden;
   min-width: 200px;
