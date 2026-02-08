@@ -47,7 +47,7 @@ window.initApp = function() {
 
   updateTheme(); 
   
-  // CSV読み込み後に描画。
+  // CSV読み込み後に描画
   loadMenuCsv().finally(() => {
     renderPage();
     initChart();
@@ -302,33 +302,38 @@ function setupRealtimeListener() {
       return;
   }
 
-  // ★重要：既存のリスナーがあれば解除
-  if (unsubscribeData) {
-      unsubscribeData(); 
-      unsubscribeData = null;
-  }
-  if (unsubscribeHistory) {
-      unsubscribeHistory();
-      unsubscribeHistory = null;
-  }
+  // 古いリスナーを解除
+  if (unsubscribeData) { unsubscribeData(); unsubscribeData = null; }
+  if (unsubscribeHistory) { unsubscribeHistory(); unsubscribeHistory = null; }
 
-  // ★重要：データ混在を防ぐため、一旦メモリ上のデータをリセット
+  // 画面上のデータを一旦クリアして混在を防ぐ
   currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
   historyData = {};
-  renderPage(); // クリア状態で描画
+  
+  // ★重要：リスナー設定時に「今だれを見ているか」を記録する（クロージャ）
+  const listeningUser = currentUser;
+  const listeningMeal = currentMeal;
 
   // 1. 履歴データのリスナー
-  const historyPath = `history/${currentUser}`;
+  const historyPath = `history/${listeningUser}`;
   const historyRef = window.ref(window.db, historyPath);
+  
   unsubscribeHistory = window.onValue(historyRef, (snapshot) => {
+      // ★ガード処理：もし画面のユーザーと、このリスナーのユーザーが違ったら無視する
+      if (listeningUser !== currentUser) return;
+      
       historyData = snapshot.val() || {};
-      renderPage(); // 履歴更新時も再描画
+      renderPage(); 
   });
 
   // 2. 当日の食事データのリスナー
-  const dataPath = `users/${currentUser}/${currentMeal}`;
+  const dataPath = `users/${listeningUser}/${listeningMeal}`;
   const dataRef = window.ref(window.db, dataPath);
+  
   unsubscribeData = window.onValue(dataRef, (snapshot) => {
+      // ★ガード処理：ユーザーか食事が変わっていたら、この古い通知は無視する
+      if (listeningUser !== currentUser || listeningMeal !== currentMeal) return;
+
       const val = snapshot.val();
       if (val) {
         currentFirebaseData = val;
@@ -540,7 +545,7 @@ function createItemRow(itemObj, checks) {
     const itemName = itemObj.name;
     const savedVal = checks[itemName] || 'none';
     
-    // ★変更：ラジオボタンのname属性にユーザーIDを含めてユニークにする
+    // ラジオボタンのname属性にユーザーIDを含めてユニークにする
     const radioName = `radio_${currentUser}_${itemName}`;
 
     let iconHtml = '';
@@ -714,7 +719,6 @@ function updateTheme() {
   if(myChart) updateChartAndScore(); 
 }
 
-// ★変更：引数でitemNameも受け取るようにして確実に処理
 window.saveData = function(targetInput, itemName) {
   const data = {
     checks: {},
@@ -724,16 +728,9 @@ window.saveData = function(targetInput, itemName) {
 
   const inputs = document.querySelectorAll('input[type="radio"]:checked');
   inputs.forEach(input => {
-    // 識別子を除去して純粋なアイテム名を取得するロジックは使わず、
-    // radioNameの構造に依存しないようにname属性から解析するか、
-    // あるいは単純に保持しているchecksデータを作る
-    // ここでは単純に全ての checked radio を走査するが、
-    // 他のユーザーのradioは存在しない(再描画されている)はずなので大丈夫。
-    //念のため name 属性から パースする
     // name="radio_boy_パン" -> split('_') -> [radio, boy, パン...]
-    
     const parts = input.name.split('_');
-    // parts[0] is 'radio', parts[1] is user, parts[2...] is item name
+    // 現在のユーザーIDと一致するものだけを保存対象にする（誤保存防止）
     if(parts.length >= 3 && parts[1] === currentUser) {
         const name = parts.slice(2).join('_');
         data.checks[name] = input.value;
