@@ -1,4 +1,4 @@
-　const CATEGORY_MAP = { 1: "主食", 2: "主菜", 3: "副菜", 4: "汁物", 5: "デザート" };
+const CATEGORY_MAP = { 1: "主食", 2: "主菜", 3: "副菜", 4: "汁物", 5: "デザート" };
 
 let currentUser = 'boy';   
 let currentMeal = 'morning'; 
@@ -6,7 +6,7 @@ let currentTheme = 'minimal';
 let menuData = { morning: {}, dinner: {} }; 
 let nutritionMap = {}; 
 
-// 現在のデータ保持用
+// データ保持用
 let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
 
 let myChart = null;
@@ -16,15 +16,16 @@ let weatherCode = null;
 let touchStartX = 0;
 let touchStartY = 0;
 
-// リスナー解除用の関数を保持
+// リスナー解除用の関数
 let unsubscribe = null;
 
 const DAY_SWITCH_HOUR = 4;
 
-// --- アプリ初期化 ---
+// --- アプリ起動 ---
 window.initApp = function() {
   console.log("App initializing...");
 
+  // 1. ローカル設定の復元
   const lastUser = localStorage.getItem('fc_last_user');
   if(lastUser) currentUser = lastUser;
 
@@ -37,6 +38,7 @@ window.initApp = function() {
       }
   }
 
+  // 2. 時間帯判定
   const currentHour = new Date().getHours();
   if (currentHour >= 4 && currentHour < 14) {
       currentMeal = 'morning';
@@ -46,40 +48,52 @@ window.initApp = function() {
 
   updateTheme(); 
   
-  // CSV読み込み
-  loadMenuCsv().finally(() => {
-    // 枠組み作成
-    initChart();
-    initCalc();
-    getWeather(); 
-    setupSwipeListener(); 
-    
-    // データ接続開始
-    connectToFirebase();
-  });
+  // 3. メニューデータ読み込み
+  loadMenuCsv()
+    .then(() => {
+       console.log("CSV loaded");
+    })
+    .catch((e) => {
+       console.error("CSV Error", e);
+       // エラーでも止まらずに進む
+    })
+    .finally(() => {
+       // 4. まずは強制的に画面を描画（これで「読み込み中」が消える）
+       renderPage();
+       initChart();
+       initCalc();
+       getWeather(); 
+       setupSwipeListener(); 
+       
+       // 5. データ接続開始（遅延があっても画面は操作可能）
+       connectToFirebase();
+    });
 }
 
-// --- Firebase接続管理 (シンプル版) ---
+// --- Firebase接続管理 ---
 function connectToFirebase() {
-    // 1. 既存の接続を切る
+    // 既存接続を切断
     if (unsubscribe) {
         unsubscribe();
         unsubscribe = null;
     }
 
-    // 2. データをクリアして画面をリセット（混ざり防止）
+    // 画面データをクリアしてリセット
     currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
+    updateStatusIndicator(null); // ステータスを「確認中」に
+    
+    // UI反映（データ空の状態）
     renderPage();
     updateChartAndScore();
-    updateStatusIndicator(null); // 読み込み中...にする
 
-    // 3. Firebaseがなければ終了
+    // DBチェック
     if (!window.db) {
-        console.error("Firebase not ready.");
+        // まだDB準備できていない場合は、0.5秒後に再トライ
+        setTimeout(connectToFirebase, 500);
         return;
     }
 
-    // 4. 新しいパスに接続
+    // 新しいパスに接続
     const dataPath = `users/${currentUser}/${currentMeal}`;
     const dataRef = window.ref(window.db, dataPath);
 
@@ -91,7 +105,7 @@ function connectToFirebase() {
             currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
         }
         
-        // データが来たら画面更新
+        // データ受信 -> 画面更新
         renderPage();
         updateChartAndScore();
         updateStatusIndicator(currentFirebaseData);
@@ -104,14 +118,14 @@ window.switchUser = function(user) {
   currentUser = user;
   localStorage.setItem('fc_last_user', user);
   updateTheme();
-  connectToFirebase(); // 再接続
+  connectToFirebase(); 
 }
 
 // --- 食事切り替え ---
 window.switchMeal = function(meal) {
   if (currentMeal === meal) return;
   currentMeal = meal;
-  connectToFirebase(); // 再接続
+  connectToFirebase(); 
 }
 
 // --- テーマ更新 ---
@@ -134,15 +148,10 @@ function updateTheme() {
 
 // --- CSV読み込み ---
 async function loadMenuCsv() {
-  try {
-    const response = await fetch('menu.csv?' + new Date().getTime());
-    if (!response.ok) throw new Error("CSV error");
-    const text = await response.text();
-    parseCsv(text);
-  } catch (e) {
-    const c = document.getElementById('list-container');
-    if(c) c.innerHTML = `<div style="text-align:center; margin-top:20px; color:var(--text-sub);">メニュー読込エラー</div>`;
-  }
+  const response = await fetch('menu.csv?' + new Date().getTime());
+  if (!response.ok) throw new Error("CSV error");
+  const text = await response.text();
+  parseCsv(text);
 }
 
 function parseCsv(text) {
@@ -182,7 +191,6 @@ function renderPage() {
   const container = document.getElementById('list-container');
   if(!container) return; 
 
-  // タブのアクティブ化
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   const activeTab = document.getElementById(`tab-${currentMeal}`);
   if(activeTab) activeTab.classList.add('active');
@@ -194,13 +202,11 @@ function renderPage() {
   
   const checks = currentFirebaseData.checks || {};
 
-  // その他欄
   const ofInput = document.getElementById('other-finish');
   const olInput = document.getElementById('other-left');
   if (ofInput && document.activeElement !== ofInput) ofInput.value = currentFirebaseData.otherFinish || '';
   if (olInput && document.activeElement !== olInput) olInput.value = currentFirebaseData.otherLeft || '';
 
-  // メニュー生成
   Object.values(CATEGORY_MAP).forEach(catName => {
     const items = menuData[currentMeal][catName];
     if (!items || items.length === 0) return;
@@ -213,14 +219,11 @@ function renderPage() {
     const card = document.createElement('div');
     card.className = 'list-card';
 
-    // サブなし
     items.filter(i => !i.sub).forEach(itemObj => {
         card.appendChild(createItemRow(itemObj, checks));
     });
 
-    // サブあり
     const subCategories = [...new Set(items.filter(i => i.sub).map(i => i.sub))];
-    // 並び順定義
     const ORDER_LIST = ["豆・卵・乳", "芋・栗・南瓜", "おかず・粉もの", "野菜・きのこ"];
     subCategories.sort((a, b) => {
         let idxA = ORDER_LIST.indexOf(a);
@@ -251,7 +254,7 @@ function createItemRow(itemObj, checks) {
     const itemName = itemObj.name;
     const savedVal = checks[itemName] || 'none';
     
-    // ★重要：ラジオボタンのグループ名をユーザーごとにユニークにする
+    // ★重要：ユーザーIDを名前に含めてユニーク化（同期バグ防止）
     const radioName = `radio_${currentUser}_${itemName}`;
 
     let iconHtml = '';
@@ -291,7 +294,7 @@ window.saveData = function() {
   const inputs = document.querySelectorAll('.menu-radio:checked');
   inputs.forEach(input => {
       // 現在のユーザー用のボタンか確認
-      if(input.name.startsWith(`radio_${currentUser}_`)) {
+      if(input.name.indexOf(`radio_${currentUser}_`) === 0) {
           const name = input.getAttribute('data-item');
           if(name) data.checks[name] = input.value;
       }
@@ -329,8 +332,12 @@ function updateStatusIndicator(data) {
     const statusText = document.getElementById('status-text');
     const container = document.getElementById('list-container');
 
+    if (!statusBar) return;
+
     if (data === null) {
-        statusText.textContent = "読み込み中...";
+        statusIcon.textContent = 'history';
+        statusText.textContent = "確認中...";
+        statusBar.className = 'status-bar';
         return;
     }
 
@@ -362,7 +369,9 @@ function updateStatusIndicator(data) {
 
 // --- グラフ ---
 function initChart() {
-  const ctx = document.getElementById('nutritionChart').getContext('2d');
+  const canvas = document.getElementById('nutritionChart');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
   
   myChart = new Chart(ctx, {
     type: 'radar',
@@ -444,11 +453,9 @@ function updateChartAndScore() {
 
   myChart.update();
 
-  const totalScore = totalY + totalR + totalG;
   const scoreTextEl = document.getElementById('score-text');
   const commentEl = document.getElementById('score-comment');
-  
-  scoreTextEl.innerHTML = `${totalScore} <span style="font-size:1.2rem;">pt</span>`;
+  if(scoreTextEl) scoreTextEl.innerHTML = `${totalScore} <span style="font-size:1.2rem;">pt</span>`;
 
   let comment = "";
   if (totalScore === 0) {
