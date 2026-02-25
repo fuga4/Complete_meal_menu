@@ -402,6 +402,40 @@ function parseCsv(text) {
   });
 }
 
+// ★追加：お気に入りリストをローカルストレージから取得
+function isFavorite(itemName) {
+    try {
+        const favs = JSON.parse(localStorage.getItem('fc_favorites') || '[]');
+        return favs.includes(itemName);
+    } catch(e) {
+        return false;
+    }
+}
+
+// ★追加：お気に入りボタンが押された時の処理
+window.toggleFavorite = function(itemName) {
+    // 順番が再描画される前に、今入力しているチェック状態をFirebaseに確実に保存する
+    window.saveData();
+
+    let favs = [];
+    try {
+        favs = JSON.parse(localStorage.getItem('fc_favorites') || '[]');
+    } catch(e) {
+        favs = [];
+    }
+
+    if (favs.includes(itemName)) {
+        favs = favs.filter(name => name !== itemName); // 削除
+    } else {
+        favs.push(itemName); // 追加
+    }
+    
+    localStorage.setItem('fc_favorites', JSON.stringify(favs));
+    
+    // 即座に画面を再描画して、一番上へ移動させる
+    renderPage();
+}
+
 function renderPage() {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`tab-${currentMeal}`).classList.add('active');
@@ -427,12 +461,30 @@ function renderPage() {
     const card = document.createElement('div');
     card.className = 'list-card';
 
-    const noSubItems = items.filter(i => !i.sub);
+    // ★修正：1. まず「お気に入り」に設定されたアイテムを全て一番上に描画する
+    const favItems = items.filter(i => isFavorite(i.name));
+    if (favItems.length > 0) {
+        favItems.forEach(itemObj => {
+            card.appendChild(createItemRow(itemObj, checks));
+        });
+        
+        // お気に入りエリアと通常エリアの間に区切り線を入れる
+        if (favItems.length < items.length) {
+            const separator = document.createElement('div');
+            separator.style.borderBottom = '2px dotted var(--border-color)';
+            separator.style.opacity = '0.5';
+            card.appendChild(separator);
+        }
+    }
+
+    // ★修正：2. サブカテゴリなし（お気に入り以外）を描画
+    const noSubItems = items.filter(i => !i.sub && !isFavorite(i.name));
     noSubItems.forEach(itemObj => {
         card.appendChild(createItemRow(itemObj, checks));
     });
 
-    let subCategories = [...new Set(items.filter(i => i.sub).map(i => i.sub))];
+    // ★修正：3. サブカテゴリあり（お気に入り以外）を描画
+    let subCategories = [...new Set(items.filter(i => i.sub && !isFavorite(i.name)).map(i => i.sub))];
     
     const ORDER_LIST = ["豆・卵・乳", "芋・栗・南瓜", "おかず・粉もの", "野菜・きのこ"];
     subCategories.sort((a, b) => {
@@ -449,7 +501,7 @@ function renderPage() {
         subHeader.textContent = subName;
         card.appendChild(subHeader);
 
-        const subItems = items.filter(i => i.sub === subName);
+        const subItems = items.filter(i => i.sub === subName && !isFavorite(i.name));
         subItems.forEach(itemObj => {
             card.appendChild(createItemRow(itemObj, checks));
         });
@@ -476,8 +528,13 @@ function createItemRow(itemObj, checks) {
         iconHtml = `<span class="material-symbols-rounded menu-icon-disp" style="color:${itemObj.color};">${itemObj.icon}</span>`;
     }
 
+    // ★追加：お気に入りの状態によって★アイコンの表示を変える
+    const isFav = isFavorite(itemName);
+    const favClass = isFav ? 'fav-active' : '';
+
     row.innerHTML = `
       <div class="item-name">
+        <span class="material-symbols-rounded fav-btn ${favClass}" onclick="toggleFavorite('${itemName}')">star</span>
         ${iconHtml}
         <span>${itemName}</span>
       </div>
@@ -670,7 +727,6 @@ window.resetAll = function() {
   window.set(window.ref(window.db, dataPath), null);
 }
 
-// ★追加：トーストエレメントの自動復元
 function ensureToastElement() {
     let toast = document.getElementById('toast');
     if (!toast) {
