@@ -8,7 +8,7 @@ let nutritionMap = {};
 
 // データ保持用
 let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' }; 
-let itemStats = {}; // ★追加：30日間の登場回数を保持する用
+let itemStats = {}; // 30日間の登場回数を保持する用
 
 let myChart = null;
 let weatherAnimInterval = null;
@@ -48,7 +48,7 @@ window.initApp = function() {
   updateTheme(); 
   
   loadMenuCsv().then(() => {
-       renderPage(); // まずは空で描画
+       renderPage(); 
        initChart();
        initCalc();
        getWeather(); 
@@ -66,7 +66,7 @@ function connectToFirebase() {
     }
 
     currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
-    itemStats = {}; // スタッツもクリア
+    itemStats = {}; 
     updateStatusIndicator(null);
     renderPage();       
     updateChartAndScore(); 
@@ -76,32 +76,45 @@ function connectToFirebase() {
         return;
     }
 
-    // ★追加：1. まず過去の登場回数（スタッツ）を取得する
-    const statsPath = `stats/${currentUser}/${currentMeal}`;
-    window.get(window.ref(window.db, statsPath)).then((snapshot) => {
-        if (snapshot.exists()) {
-            itemStats = snapshot.val();
-        } else {
-            itemStats = {};
-        }
-
-        // ★2. その後、いつものように今日のデータを監視する
-        const dataPath = `users/${currentUser}/${currentMeal}`;
-        const dataRef = window.ref(window.db, dataPath);
-
-        unsubscribe = window.onValue(dataRef, (snapshot) => {
-            const val = snapshot.val();
-            if (val) {
-                currentFirebaseData = val;
+    // ★修正：アクセス権限エラーを回避するため、usersフォルダ内に保存場所を変更
+    const statsPath = `users/${currentUser}/stats/${currentMeal}`;
+    
+    // ★修正：エラーが起きても処理が止まらないように .catch() を追加
+    window.get(window.ref(window.db, statsPath))
+        .then((snapshot) => {
+            if (snapshot.exists()) {
+                itemStats = snapshot.val();
             } else {
-                currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
+                itemStats = {};
             }
-            
-            // データ受信 -> 画面更新（このとき取得済みのスタッツを使って並び替える）
-            renderPage();
-            updateChartAndScore();
-            updateStatusIndicator(currentFirebaseData);
+            attachMainListener(); // スタッツ取得後にメインを読み込む
+        })
+        .catch(err => {
+            console.error("Stats load error (skipped):", err);
+            itemStats = {};
+            attachMainListener(); // エラーが起きても絶対にメインデータの読み込みへ進む
         });
+}
+
+// メインデータの読み込み（分離して安全に実行）
+function attachMainListener() {
+    const dataPath = `users/${currentUser}/${currentMeal}`;
+    const dataRef = window.ref(window.db, dataPath);
+
+    unsubscribe = window.onValue(dataRef, (snapshot) => {
+        const val = snapshot.val();
+        if (val) {
+            currentFirebaseData = val;
+        } else {
+            currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
+        }
+        
+        // データ受信 -> 画面更新（このとき取得済みのスタッツを使って並び替える）
+        renderPage();
+        updateChartAndScore();
+        updateStatusIndicator(currentFirebaseData);
+    }, (error) => {
+        console.error("Data load error:", error);
     });
 }
 
@@ -185,7 +198,7 @@ function parseCsv(text) {
   });
 }
 
-// ★追加：過去30日間の登場回数を計算する関数
+// 過去30日間の登場回数を計算する関数
 function getSortScore(itemName) {
     if (!itemStats || !itemStats[itemName]) return 0;
     
@@ -230,7 +243,7 @@ function renderPage() {
     let categoryItems = menuData[currentMeal][catName];
     if (!categoryItems || categoryItems.length === 0) return;
 
-    // ★追加：ここで回数順に並び替え（回数が同じ場合はCSVの順番を維持）
+    // 回数順に並び替え（回数が同じ場合はCSVの順番を維持）
     const sortedItems = [...categoryItems].map((item, index) => ({ item, index })).sort((a, b) => {
         const scoreA = getSortScore(a.item.name);
         const scoreB = getSortScore(b.item.name);
@@ -293,7 +306,7 @@ function createItemRow(itemObj, checks) {
         iconHtml = `<span class="material-symbols-rounded menu-icon-disp" style="color:${itemObj.color};">${itemObj.icon}</span>`;
     }
 
-    // ★追加：回数が1回以上なら、名前の横に薄く「★」を表示する（見栄えの調整）
+    // 回数が1回以上なら、名前の横に薄く「★」を表示する
     const score = getSortScore(itemName);
     let scoreBadge = '';
     if (score > 0) {
@@ -338,14 +351,12 @@ window.saveData = function() {
           if(name) {
               data.checks[name] = val;
               
-              // ★追加：スタッツ（統計）の記録処理
-              const statPath = `stats/${currentUser}/${currentMeal}/${name}/${logicalDate}`;
+              // ★修正：アクセス権限エラーを回避するため、usersフォルダ内に保存
+              const statPath = `users/${currentUser}/stats/${currentMeal}/${name}/${logicalDate}`;
               if (val === 'finish' || val === 'left') {
-                  // 完食か残しが選ばれたら、今日のスタンプを押す
-                  window.set(window.ref(window.db, statPath), true);
+                  window.set(window.ref(window.db, statPath), true).catch(e => console.error("Stats save error:", e));
               } else if (val === 'none') {
-                  // 取り消した場合はスタンプを消す
-                  window.set(window.ref(window.db, statPath), null);
+                  window.set(window.ref(window.db, statPath), null).catch(e => console.error("Stats remove error:", e));
               }
           }
       }
@@ -355,7 +366,7 @@ window.saveData = function() {
   data.lastUpdatedTime = getCurrentTimeStr();
 
   const dataPath = `users/${currentUser}/${currentMeal}`;
-  window.set(window.ref(window.db, dataPath), data);
+  window.set(window.ref(window.db, dataPath), data).catch(e => console.error("Data save error:", e));
 }
 
 // --- ユーティリティ ---
@@ -504,7 +515,7 @@ function updateChartAndScore() {
 
   myChart.update();
 
-  const totalScore = totalY + totalR + totalG; // 計算漏れ防止
+  const totalScore = totalY + totalR + totalG;
   const scoreTextEl = document.getElementById('score-text');
   const commentEl = document.getElementById('score-comment');
   if(scoreTextEl) scoreTextEl.innerHTML = `${totalScore} <span style="font-size:1.2rem;">pt</span>`;
@@ -524,7 +535,7 @@ function updateChartAndScore() {
   commentEl.innerHTML = comment;
 }
 
-// --- その他ツール (計算機・スワイプ・天気など) ---
+// --- その他ツール ---
 function setupSwipeListener() {
   document.addEventListener('touchstart', (e) => {
       touchStartX = e.touches[0].clientX;
@@ -653,14 +664,12 @@ window.resetCurrent = function() {
 window.resetAll = function() {
   closeModal();
   if(!confirm("【注意】\n全員の全てのデータを消去しますか？\n（過去の登場回数データもリセットされます）")) return;
-  // ★追加：統計データも一緒に消去する
   window.set(window.ref(window.db, `users`), null);
-  window.set(window.ref(window.db, `stats`), null);
 }
 
 function showToast(message) {
   const toast = document.getElementById('toast');
-  if(!toast) return; // 念のため
+  if(!toast) return; 
   toast.textContent = message;
   toast.className = 'toast show';
   setTimeout(() => { toast.className = 'toast'; }, 3000);
@@ -694,7 +703,7 @@ window.generateAndCopy = function(shouldLaunch) {
       const items = menuData[currentMeal][catName];
       if (!items) return;
 
-      // コピー時はCSVの元々の順番で出力する（見やすさのため）
+      // コピー時はCSVの元々の順番で出力する
       items.forEach(itemObj => {
           const itemName = itemObj.name;
           const val = checks[itemName];
