@@ -507,3 +507,23 @@ body[data-theme="minimal"] .theme-btn.active { background: var(--text-main); col
   opacity: 1;
   bottom: 140px; /* スライドアップ */
 }
+
+/* ★追加：お気に入り（ピン留め）ボタン */
+.fav-btn {
+  cursor: pointer;
+  margin-right: 6px;
+  font-size: 1.3rem;
+  color: var(--border-color); /* デフォルトはグレー */
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  font-variation-settings: 'FILL' 0, 'wght' 400;
+  -webkit-tap-highlight-color: transparent;
+}
+.fav-btn.fav-active {
+  color: #FFCC00; /* アクティブ時は黄色 */
+  font-variation-settings: 'FILL' 1, 'wght' 400;
+  transform: scale(1.1);
+  text-shadow: 0 1px 3px rgba(255,204,0,0.4);
+}
+.fav-btn:active {
+  transform: scale(0.8);
+}
