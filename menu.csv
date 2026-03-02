@@ -1,5 +1,6 @@
 1,1,パン,3,1,0,,bakery_dining,#D4A056
 1,1,ご飯,3,0,0,,rice_bowl,#9E9E9E
+1,1,おいなりさん,3,1,0,,rice_bowl,#FFB74D
 1,2,卵焼き,0,2,0,,egg,#FBC02D
 1,2,ウインナー,0,2,0,,restaurant,#E57373
 1,2,ヨーグルト,0,2,0,,water_drop,#4FC3F7
@@ -21,6 +22,7 @@
 2,1,白米,3,0,0,,rice_bowl,#9E9E9E
 2,1,焼きおにぎり,3,0,0,,rice_bowl,#A1887F
 2,1,魚おにぎり,3,1,0,,rice_bowl,#90A4AE
+2,1,おいなりさん,3,1,0,,rice_bowl,#FFB74D
 2,1,チキンライス,3,1,1,,rice_bowl,#FF8A65
 2,1,ツナと野菜のピラフ,3,1,1,,rice_bowl,#FFCC80
 2,1,パン,3,1,0,,bakery_dining,#D4A056
