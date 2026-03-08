@@ -81,6 +81,7 @@
 2,3,胡麻団子,2,0,0,おかず・粉もの,cookie,#BCAAA4
 2,4,味噌汁,0,0,1,,soup_kitchen,#D7CCC8
 2,4,野菜スープ,0,0,2,,soup_kitchen,#FFAB91
+2,4,シチュー,1,1,1,,soup_kitchen,#FFE0B2
 2,4,牛乳,0,2,0,,water_drop,#4FC3F7
 2,5,バナナ,1,0,2,,nutrition,#FDD835
 2,5,りんご,0,0,3,,nutrition,#F44336
