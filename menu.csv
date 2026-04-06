@@ -2,6 +2,7 @@
 1,1,ピザ,3,1,0,,local_pizza,#FF5722
 1,1,ご飯,3,0,0,,rice_bowl,#9E9E9E
 1,1,おいなりさん,3,1,0,,rice_bowl,#FFB74D
+1,1,そうめん,3,0,0,,ramen_dining,#E0E0E0
 1,2,卵焼き,0,2,0,,egg,#FBC02D
 1,2,ウインナー,0,2,0,,restaurant,#E57373
 1,2,ヨーグルト,0,2,0,,water_drop,#4FC3F7
@@ -34,6 +35,7 @@
 2,1,ピザ,3,1,0,,local_pizza,#FF5722
 2,1,パスタ,3,1,0,,ramen_dining,#FFAB91
 2,1,焼きそば,3,1,2,,ramen_dining,#FFB74D
+2,1,そうめん,3,0,0,,ramen_dining,#E0E0E0
 2,1,卵そうめん,1,1,0,,ramen_dining,#FFE082
 2,2,ハンバーグ,0,3,0,,restaurant,#8D6E63
 2,2,豆腐ハンバーグ,0,3,0,,restaurant,#A1887F
