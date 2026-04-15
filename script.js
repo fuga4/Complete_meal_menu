@@ -37,6 +37,8 @@ window.initApp = function() {
   }
 
   updateTheme(); 
+  updateTicker(); // ★追加：火曜日メッセージの判定
+
   loadMenuCsv().then(() => {
     initChart();
     setupRealtimeListener(); 
@@ -44,6 +46,25 @@ window.initApp = function() {
     initCalc();
     setupSwipeListener(); 
   });
+}
+
+// ★追加：火曜日のメッセージ表示判定
+function updateTicker() {
+    const ticker = document.getElementById('ticker-container');
+    if (!ticker) return;
+
+    const now = new Date();
+    // 4時を日付の切り替わりとする
+    if (now.getHours() < DAY_SWITCH_HOUR) {
+        now.setDate(now.getDate() - 1);
+    }
+    
+    // getDay() は 0(日)〜6(土)。2 は火曜日。
+    if (now.getDay() === 2) {
+        ticker.style.display = 'block';
+    } else {
+        ticker.style.display = 'none';
+    }
 }
 
 // テーマ切り替え
@@ -402,7 +423,6 @@ function parseCsv(text) {
   });
 }
 
-// ★追加：お気に入りリストをローカルストレージから取得
 function isFavorite(itemName) {
     try {
         const favs = JSON.parse(localStorage.getItem('fc_favorites') || '[]');
@@ -412,27 +432,20 @@ function isFavorite(itemName) {
     }
 }
 
-// ★追加：お気に入りボタンが押された時の処理
 window.toggleFavorite = function(itemName) {
-    // 順番が再描画される前に、今入力しているチェック状態をFirebaseに確実に保存する
     window.saveData();
-
     let favs = [];
     try {
         favs = JSON.parse(localStorage.getItem('fc_favorites') || '[]');
     } catch(e) {
         favs = [];
     }
-
     if (favs.includes(itemName)) {
-        favs = favs.filter(name => name !== itemName); // 削除
+        favs = favs.filter(name => name !== itemName);
     } else {
-        favs.push(itemName); // 追加
+        favs.push(itemName);
     }
-    
     localStorage.setItem('fc_favorites', JSON.stringify(favs));
-    
-    // 即座に画面を再描画して、一番上へ移動させる
     renderPage();
 }
 
@@ -461,14 +474,11 @@ function renderPage() {
     const card = document.createElement('div');
     card.className = 'list-card';
 
-    // ★修正：1. まず「お気に入り」に設定されたアイテムを全て一番上に描画する
     const favItems = items.filter(i => isFavorite(i.name));
     if (favItems.length > 0) {
         favItems.forEach(itemObj => {
             card.appendChild(createItemRow(itemObj, checks));
         });
-        
-        // お気に入りエリアと通常エリアの間に区切り線を入れる
         if (favItems.length < items.length) {
             const separator = document.createElement('div');
             separator.style.borderBottom = '2px dotted var(--border-color)';
@@ -477,15 +487,12 @@ function renderPage() {
         }
     }
 
-    // ★修正：2. サブカテゴリなし（お気に入り以外）を描画
     const noSubItems = items.filter(i => !i.sub && !isFavorite(i.name));
     noSubItems.forEach(itemObj => {
         card.appendChild(createItemRow(itemObj, checks));
     });
 
-    // ★修正：3. サブカテゴリあり（お気に入り以外）を描画
     let subCategories = [...new Set(items.filter(i => i.sub && !isFavorite(i.name)).map(i => i.sub))];
-    
     const ORDER_LIST = ["豆・卵・乳", "芋・栗・南瓜", "おかず・粉もの", "野菜・きのこ"];
     subCategories.sort((a, b) => {
         let idxA = ORDER_LIST.indexOf(a);
@@ -528,7 +535,6 @@ function createItemRow(itemObj, checks) {
         iconHtml = `<span class="material-symbols-rounded menu-icon-disp" style="color:${itemObj.color};">${itemObj.icon}</span>`;
     }
 
-    // ★追加：お気に入りの状態によって★アイコンの表示を変える
     const isFav = isFavorite(itemName);
     const favClass = isFav ? 'fav-active' : '';
 
@@ -555,7 +561,6 @@ function createItemRow(itemObj, checks) {
 
 function initChart() {
   const ctx = document.getElementById('nutritionChart').getContext('2d');
-  
   myChart = new Chart(ctx, {
     type: 'radar',
     data: {
@@ -596,13 +601,8 @@ function initChart() {
 
 function updateChartAndScore() {
   if (!myChart) return;
-
-  let totalY = 0;
-  let totalR = 0;
-  let totalG = 0;
-
+  let totalY = 0, totalR = 0, totalG = 0;
   const checks = currentFirebaseData.checks || {};
-
   Object.keys(checks).forEach(item => {
     if (checks[item] === 'finish' && nutritionMap[item]) {
       totalY += nutritionMap[item].yellow;
@@ -610,14 +610,11 @@ function updateChartAndScore() {
       totalG += nutritionMap[item].green;
     }
   });
-
   myChart.data.datasets[0].data = [totalY, totalR, totalG];
-  
   const rootStyles = getComputedStyle(document.documentElement);
   const accentColorHex = currentUser === 'boy' 
      ? rootStyles.getPropertyValue('--color-boy').trim()
      : rootStyles.getPropertyValue('--color-girl').trim();
-  
   let r=0, g=0, b=0;
   if(accentColorHex.startsWith('#')) {
       const hex = accentColorHex.slice(1);
@@ -625,38 +622,25 @@ function updateChartAndScore() {
       g = parseInt(hex.substring(2,4), 16);
       b = parseInt(hex.substring(4,6), 16);
   }
-
   myChart.data.datasets[0].backgroundColor = `rgba(${r}, ${g}, ${b}, 0.2)`;
   myChart.data.datasets[0].borderColor = `rgba(${r}, ${g}, ${b}, 1)`;
-  
   const isDark = currentTheme === 'glass' && window.matchMedia('(prefers-color-scheme: dark)').matches; 
   const gridColor = isDark ? 'rgba(255,255,255,0.1)' : '#E5E5EA';
   const labelColor = isDark ? 'rgba(255,255,255,0.6)' : '#8E8E93';
-
   myChart.options.scales.r.grid.color = gridColor;
   myChart.options.scales.r.angleLines.color = gridColor;
   myChart.options.scales.r.pointLabels.color = labelColor;
-
   myChart.update();
-
   const totalScore = totalY + totalR + totalG;
   const scoreTextEl = document.getElementById('score-text');
   const commentEl = document.getElementById('score-comment');
-  
   scoreTextEl.innerHTML = `${totalScore} <span style="font-size:1.2rem;">pt</span>`;
-
   let comment = "";
-  if (totalScore === 0) {
-      comment = "何を食べるかな？";
-  } else if (totalScore < 5) {
-      comment = `もう少し食べよう！<span class="material-symbols-rounded" style="vertical-align: text-bottom;">rice_bowl</span>`;
-  } else if (totalScore < 10) {
-      comment = `良い調子！その調子<span class="material-symbols-rounded" style="vertical-align: text-bottom;">thumb_up</span>`;
-  } else if (totalScore < 15) {
-      comment = `ナイスバランス！素晴らしい<span class="material-symbols-rounded" style="vertical-align: text-bottom;">auto_awesome</span>`;
-  } else {
-      comment = `エネルギー満タン！元気100倍<span class="material-symbols-rounded" style="vertical-align: text-bottom;">fitness_center</span>`;
-  }
+  if (totalScore === 0) comment = "何を食べるかな？";
+  else if (totalScore < 5) comment = `もう少し食べよう！<span class="material-symbols-rounded" style="vertical-align: text-bottom;">rice_bowl</span>`;
+  else if (totalScore < 10) comment = `良い調子！その調子<span class="material-symbols-rounded" style="vertical-align: text-bottom;">thumb_up</span>`;
+  else if (totalScore < 15) comment = `ナイスバランス！素晴らしい<span class="material-symbols-rounded" style="vertical-align: text-bottom;">auto_awesome</span>`;
+  else comment = `エネルギー満タン！元気100倍<span class="material-symbols-rounded" style="vertical-align: text-bottom;">fitness_center</span>`;
   commentEl.innerHTML = comment;
 }
 
@@ -683,16 +667,13 @@ window.saveData = function() {
     otherFinish: document.getElementById('other-finish').value,
     otherLeft: document.getElementById('other-left').value
   };
-
   const inputs = document.querySelectorAll('input[type="radio"]:checked');
   inputs.forEach(input => {
     const itemName = input.name.replace('radio_', '');
     data.checks[itemName] = input.value;
   });
-
   data.lastUpdatedDate = getLogicalDate();
   data.lastUpdatedTime = getCurrentTimeStr();
-
   const dataPath = `users/${currentUser}/${currentMeal}`;
   window.set(window.ref(window.db, dataPath), data);
 }
@@ -723,8 +704,7 @@ window.resetCurrent = function() {
 window.resetAll = function() {
   closeModal();
   if(!confirm("【注意】\n全員の全てのデータを消去しますか？\nこの操作は取り消せません。")) return;
-  const dataPath = `users`;
-  window.set(window.ref(window.db, dataPath), null);
+  window.set(window.ref(window.db, `users`), null);
 }
 
 function ensureToastElement() {
@@ -742,20 +722,14 @@ function showToast(message) {
   const toast = ensureToastElement();
   toast.textContent = message;
   toast.className = 'toast show';
-  
-  setTimeout(() => {
-    toast.className = 'toast';
-  }, 3000);
+  setTimeout(() => { toast.className = 'toast'; }, 3000);
 }
 
 window.copyToPartner = function() {
   const targetUser = currentUser === 'boy' ? 'girl' : 'boy';
   const targetName = currentUser === 'boy' ? '女の子' : '男の子';
-  const mealName = currentMeal === 'morning' ? '朝食' : '夕食';
-  
   const sourcePath = `users/${currentUser}/${currentMeal}`;
   const targetPath = `users/${targetUser}/${currentMeal}`;
-  
   window.get(window.ref(window.db, sourcePath)).then((snapshot) => {
     if (snapshot.exists()) {
       window.set(window.ref(window.db, targetPath), snapshot.val());
@@ -769,66 +743,34 @@ window.copyToPartner = function() {
 window.generateAndCopy = function(shouldLaunch) {
   const ICON_FINISH = "⭕️";
   const ICON_LEFT   = "🔺"; 
-  
   const savedData = currentFirebaseData;
   const checks = savedData.checks || {};
-  
   let resultLines = [];
-  
   Object.keys(CATEGORY_MAP).forEach(key => {
       const catName = CATEGORY_MAP[key];
       const items = menuData[currentMeal][catName];
-      
       if (!items) return;
-
       items.forEach(itemObj => {
           const itemName = itemObj.name;
           const val = checks[itemName];
-          if (val === 'finish') {
-              resultLines.push(`【${catName}】${ICON_FINISH}${itemName}`);
-          } else if (val === 'left') {
-              resultLines.push(`【${catName}】${ICON_LEFT}${itemName}`);
-          }
+          if (val === 'finish') resultLines.push(`【${catName}】${ICON_FINISH}${itemName}`);
+          else if (val === 'left') resultLines.push(`【${catName}】${ICON_LEFT}${itemName}`);
       });
   });
-
-  const otherF = savedData.otherFinish;
-  const otherL = savedData.otherLeft;
+  const otherF = savedData.otherFinish, otherL = savedData.otherLeft;
   if(otherF) resultLines.push(`【その他】${ICON_FINISH}${otherF}`);
   if(otherL) resultLines.push(`【その他】${ICON_LEFT}${otherL}`);
-
-  if(resultLines.length === 0) {
-     showToast("選択項目がありません");
-     return;
-  }
-
+  if(resultLines.length === 0) { showToast("選択項目がありません"); return; }
   let resultText = resultLines.join("\n");
-
-  const executeCopy = () => {
-      if (navigator.clipboard) {
-          navigator.clipboard.writeText(resultText).then(() => {
-              showToast("コピーしました！");
-              if (shouldLaunch) {
-                  setTimeout(() => {
-                      window.open('https://parents.codmon.com/contact', '_blank');
-                  }, 800); 
-              }
-          });
-      } else {
-          const ta = document.createElement('textarea');
-          ta.value = resultText;
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand('copy');
-          document.body.removeChild(ta);
+  if (navigator.clipboard) {
+      navigator.clipboard.writeText(resultText).then(() => {
           showToast("コピーしました！");
-          if (shouldLaunch) {
-              setTimeout(() => {
-                  window.open('https://parents.codmon.com/contact', '_blank');
-              }, 800);
-          }
-      }
-  };
-
-  executeCopy();
+          if (shouldLaunch) setTimeout(() => { window.open('https://parents.codmon.com/contact', '_blank'); }, 800);
+      });
+  } else {
+      const ta = document.createElement('textarea');
+      ta.value = resultText; document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta); showToast("コピーしました！");
+      if (shouldLaunch) setTimeout(() => { window.open('https://parents.codmon.com/contact', '_blank'); }, 800);
+  }
 }
