@@ -527,3 +527,49 @@ body[data-theme="minimal"] .theme-btn.active { background: var(--text-main); col
 .fav-btn:active {
   transform: scale(0.8);
 }
+
+/* スクロールメッセージ（火曜日用） */
+.ticker-container {
+  width: 100%;
+  background-color: var(--color-danger); /* 赤背景 */
+  color: white;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 6px 0;
+  font-size: 0.9rem;
+  font-weight: bold;
+  position: relative;
+  z-index: 2000;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.ticker-text {
+  display: inline-block;
+  padding-left: 100%; /* 画面の右端から開始 */
+  animation: ticker-animation 15s linear infinite; /* 15秒で一周 */
+}
+
+@keyframes ticker-animation {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+/* お気に入りボタン用（以前追加したもの） */
+.fav-btn {
+  cursor: pointer;
+  margin-right: 6px;
+  font-size: 1.3rem;
+  color: var(--border-color);
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  font-variation-settings: 'FILL' 0, 'wght' 400;
+  -webkit-tap-highlight-color: transparent;
+}
+.fav-btn.fav-active {
+  color: #FFCC00;
+  font-variation-settings: 'FILL' 1, 'wght' 400;
+  transform: scale(1.1);
+  text-shadow: 0 1px 3px rgba(255,204,0,0.4);
+}
+.fav-btn:active {
+  transform: scale(0.8);
+}
