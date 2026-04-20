@@ -37,7 +37,7 @@ window.initApp = function() {
   }
 
   updateTheme(); 
-  updateTicker(); // ★追加：火曜日メッセージの判定
+  updateTicker(); // 火曜日メッセージの判定
 
   loadMenuCsv().then(() => {
     initChart();
@@ -48,23 +48,26 @@ window.initApp = function() {
   });
 }
 
-// ★追加：火曜日のメッセージ表示判定
+// ★修正：表示時間を「月曜 0:00 〜 水曜 1:59」に変更
 function updateTicker() {
     const ticker = document.getElementById('ticker-container');
     if (!ticker) return;
 
     const now = new Date();
-    // 4時を日付の切り替わりとする
-    if (now.getHours() < DAY_SWITCH_HOUR) {
-        now.setDate(now.getDate() - 1);
+    const day = now.getDay(); // 0:日, 1:月, 2:火, 3:水...
+    const hour = now.getHours();
+
+    let showTicker = false;
+
+    if (day === 1 || day === 2) {
+        // 月曜と火曜は終日表示
+        showTicker = true;
+    } else if (day === 3 && hour < 2) {
+        // 水曜は午前2時（1:59）まで表示
+        showTicker = true;
     }
-    
-    // getDay() は 0(日)〜6(土)。2 は火曜日。
-    if (now.getDay() === 2) {
-        ticker.style.display = 'block';
-    } else {
-        ticker.style.display = 'none';
-    }
+
+    ticker.style.display = showTicker ? 'block' : 'none';
 }
 
 // テーマ切り替え
@@ -116,6 +119,7 @@ function handleSwipe(startX, startY, endX, endY) {
 
 function initCalc() {
     const tbody = document.getElementById('calc-body');
+    if(!tbody) return;
     tbody.innerHTML = '';
     for (let i = 0; i < 4; i++) {
         const row = document.createElement('tr');
