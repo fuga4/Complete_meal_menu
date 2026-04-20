@@ -9,6 +9,7 @@ let currentFirebaseData = { checks: {}, otherFinish: '', otherLeft: '' };
 let myChart = null;
 let weatherAnimInterval = null;
 let weatherCode = null; 
+let tickerInterval = null; // ★追加：カウントダウンのタイマー用
 
 let touchStartX = 0;
 let touchStartY = 0;
@@ -48,26 +49,67 @@ window.initApp = function() {
   });
 }
 
-// ★修正：表示時間を「月曜 0:00 〜 水曜 1:59」に変更
+// ★修正：カウントダウン計算と1分ごとの自動更新を追加
 function updateTicker() {
     const ticker = document.getElementById('ticker-container');
-    if (!ticker) return;
+    const tickerText = document.querySelector('.ticker-text');
+    if (!ticker || !tickerText) return;
 
-    const now = new Date();
-    const day = now.getDay(); // 0:日, 1:月, 2:火, 3:水...
-    const hour = now.getHours();
+    function refreshTicker() {
+        const now = new Date();
+        const day = now.getDay(); // 0:日, 1:月, 2:火, 3:水...
+        const hour = now.getHours();
 
-    let showTicker = false;
+        let showTicker = false;
 
-    if (day === 1 || day === 2) {
-        // 月曜と火曜は終日表示
-        showTicker = true;
-    } else if (day === 3 && hour < 2) {
-        // 水曜は午前2時（1:59）まで表示
-        showTicker = true;
+        // 月曜(1)、火曜(2)、または 水曜(3)の2時未満
+        if (day === 1 || day === 2) {
+            showTicker = true;
+        } else if (day === 3 && hour < 2) {
+            showTicker = true;
+        }
+
+        if (showTicker) {
+            ticker.style.display = 'block';
+
+            // 水曜日の午前2:00をターゲットに設定
+            const target = new Date(now);
+            const diffToWednesday = 3 - day; 
+            target.setDate(now.getDate() + diffToWednesday);
+            target.setHours(2, 0, 0, 0);
+
+            // 残り時間の計算
+            const diffMs = target - now;
+            if (diffMs > 0) {
+                const d = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                const h = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const m = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                
+                let timeStr = "";
+                if (d > 0) {
+                    timeStr += `${d}日と`;
+                }
+                timeStr += `${h}時間${m}分`;
+                
+                tickerText.textContent = `【重要】コープデリ宅配注文期限まで残り ${timeStr} です！忘れずに注文しましょう。`;
+            }
+        } else {
+            ticker.style.display = 'none';
+            // 表示期間外になったらタイマーを止める
+            if (tickerInterval) {
+                clearInterval(tickerInterval);
+                tickerInterval = null;
+            }
+        }
     }
 
-    ticker.style.display = showTicker ? 'block' : 'none';
+    // 初回実行
+    refreshTicker();
+
+    // まだタイマーが動いていなければ、1分(60000ミリ秒)ごとに更新をセット
+    if (!tickerInterval) {
+        tickerInterval = setInterval(refreshTicker, 60000);
+    }
 }
 
 // テーマ切り替え
