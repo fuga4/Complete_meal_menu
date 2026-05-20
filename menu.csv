@@ -29,6 +29,7 @@
 1,5,梨,0,0,3,,nutrition,#DCE775
 1,5,グレープフルーツ,0,0,3,,nutrition,#FFB74D
 1,5,パイナップル,0,0,3,,nutrition,#FDD835
+1,5,メロン,0,0,3,,nutrition,#8BC34A
 2,1,白米,3,0,0,,rice_bowl,#9E9E9E
 2,1,焼きおにぎり,3,0,0,,rice_bowl,#A1887F
 2,1,魚おにぎり,3,1,0,,rice_bowl,#90A4AE
@@ -117,3 +118,4 @@
 2,5,梨,0,0,3,,nutrition,#DCE775
 2,5,グレープフルーツ,0,0,3,,nutrition,#FFB74D
 2,5,パイナップル,0,0,3,,nutrition,#FDD835
+2,5,メロン,0,0,3,,nutrition,#8BC34A
